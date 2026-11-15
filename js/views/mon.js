@@ -219,7 +219,7 @@ Actions['mon-dadj-ok'] = () => {
   const { p, v } = Mon.dv(null), f = UI.form();
   if (f.real < 0) return UI.toast('Tồn thực tế không được âm');
   const diff = f.real - (+v.stock || 0);
-  v.stock = f.real; Mon.save(p);
+  v.stock = f.real; v.base = f.real; v.baseAt = Date.now(); Mon.save(p);
   if (diff) Store.put('moves', { pid: p.id, vid: v.id, type: 'adjust', qty: diff, value: Math.round(diff * (+v.cost || 0)), note: 'Chênh lệch kiểm kê ' + p.name, date: ymd(), time: Date.now() });
   UI.closeSheet(); render(); UI.toast('Đã cập nhật tồn kho');
 };

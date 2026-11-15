@@ -47,9 +47,9 @@ const License = (() => {
       st.tier = key ? await verify(key) : '';
       st.activated = !!st.tier;
     },
-    locked() { return !st.activated && st.daysLeft <= 0; },
+    locked() { return !st.activated && st.daysLeft <= 0 && !(typeof Sync !== 'undefined' && Sync.paid()); },
     /* Tính năng của bản nâng cấp: dùng được khi đã mua bản nâng cấp, hoặc đang trong thời gian dùng thử */
-    can() { return st.tier === 'pro' || (!st.activated && st.daysLeft > 0); },
+    can() { return st.tier === 'pro' || (!st.activated && st.daysLeft > 0) || (typeof Sync !== 'undefined' && Sync.paid()); }, // gói online còn hạn thì mở đủ tính năng
     tierName() { return st.tier === 'pro' ? 'Bản nâng cấp' : st.tier === 'basic' ? 'Bản thường' : 'Dùng thử'; },
     async activate(key) {
       const tier = await verify(key);

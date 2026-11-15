@@ -60,6 +60,7 @@ Actions.backup = async () => {
   if (await saveFile(blob, `sao-luu-quan-${ymd()}.json`)) Store.setSetting('lastBackup', ymd());
 };
 Inputs['cd-restore'] = el => {
+  if (Sync.active()) { el.value = ''; return UI.toast('Đang dùng bản online. Đăng xuất ở mục Bản online trước khi khôi phục'); }
   const file = el.files && el.files[0]; if (!file) return;
   const rd = new FileReader();
   rd.onload = () => {
@@ -72,7 +73,7 @@ Inputs['cd-restore'] = el => {
   rd.readAsText(file); el.value = '';
 };
 Actions['cd-seed'] = () => UI.confirm('Nạp thực đơn và kho mẫu? Dữ liệu mẫu được thêm vào, không xóa dữ liệu đang có.', 'Nạp mẫu', () => { Seed.load(); render(); UI.toast('Đã nạp dữ liệu mẫu'); });
-Actions['cd-wipe'] = () => UI.confirm('Xóa toàn bộ món, kho, đơn hàng, lương, chi phí? Không khôi phục được nếu chưa sao lưu.', 'Xóa hết', async () => {
+Actions['cd-wipe'] = () => Sync.active() ? UI.toast('Đang dùng bản online. Đăng xuất ở mục Bản online trước khi xóa') : UI.confirm('Xóa toàn bộ món, kho, đơn hàng, lương, chi phí? Không khôi phục được nếu chưa sao lưu.', 'Xóa hết', async () => {
   // giữ lại tên quán, hình ảnh, cài đặt in bill; chỉ xóa số liệu
   const keep = ['shopName', 'theme', 'accent', 'logo', 'cover', 'bgImg', 'slogan', 'billAddr', 'billPhone', 'billFoot', 'billW', 'billAsk', 'lastBackup'].map(k => [k, Store.setting(k)]);
   await Store.clearData(); keep.forEach(([k, v]) => { if (v !== undefined) Store.setSetting(k, v); });

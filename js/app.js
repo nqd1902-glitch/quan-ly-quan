@@ -26,6 +26,7 @@ const ICONS = {
   lock: 'M6 11h12v9H6zM8.5 11V7.5a3.5 3.5 0 017 0V11',
   search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4',
   inbox: 'M3 13l3-8h12l3 8v6H3v-6zM3 13h5l1 2h6l1-2h5',
+  cloud: 'M7 18a4 4 0 01-.5-8A5.5 5.5 0 0117 8.5 4.5 4.5 0 0117 18H7z',
   help: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.5 9.5a2.5 2.5 0 114 2c-.9.6-1.5 1.1-1.5 2M12 17h.01',
 };
 const icon = n => `<svg class="ic" viewBox="0 0 24 24"><path d="${ICONS[n] || ''}"/></svg>`;
@@ -144,6 +145,7 @@ const App = {
   async start() {
     await Store.init();
     await License.init();
+    await Sync.init();
     Seed.applyImages();
     applyTheme();
     window.addEventListener('hashchange', render);

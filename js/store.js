@@ -44,6 +44,10 @@ const Store = (() => {
       return obj;
     },
     remove(c, id) { const x = mem[c].get(id); if (x) { x.deleted = true; api.put(c, x); } },
+    /* Dùng cho đồng bộ: ghi dữ liệu từ máy chủ về, hoặc số liệu tính lại, mà KHÔNG báo onChange (không đẩy ngược lên mạng) */
+    putQuiet(c, obj) { mem[c].set(obj.id, obj); write(c, obj); },
+    raw(c, id) { return mem[c].get(id) || null; },          // kể cả bản ghi đã xóa
+    allRaw(c) { return [...mem[c].values()]; },
     setting(key, def) { const x = mem.settings.get(key); return x ? x.value : def; },
     setSetting(key, value) { api.put('settings', { id: key, value }); },
     sys(key) { const x = mem.sys.get(key); return x ? x.value : undefined; },

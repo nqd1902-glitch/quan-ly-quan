@@ -154,7 +154,7 @@ Actions['kho-adjust-ok'] = () => {
   const ing = Store.get('ingredients', S.khoId); const f = UI.form();
   if (f.real < 0) return UI.toast('Tồn thực tế không được âm');
   const diff = f.real * ing.factor - (+ing.stock || 0);
-  ing.stock = f.real * ing.factor;
+  ing.stock = f.real * ing.factor; ing.base = ing.stock; ing.baseAt = Date.now(); // mốc kiểm kê, bản online tính tồn từ đây
   Store.put('ingredients', ing);
   if (diff) Kho.move(ing, 'adjust', diff, diff / ing.factor * ing.price, 'Chênh lệch kiểm kê');
   UI.closeSheet(); render(); UI.toast('Đã cập nhật tồn kho');
