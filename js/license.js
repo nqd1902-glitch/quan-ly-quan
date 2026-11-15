@@ -3,7 +3,7 @@
    Mã kích hoạt là chữ ký số ECDSA của mã máy; app chỉ giữ khóa công khai nên không tự tạo mã được. */
 const SELLER_ZALO = '0859 400 192'; // số Zalo người bán, hiện ở màn hình kích hoạt
 const License = (() => {
-  const TRIAL_DAYS = 7, DAY = 86400000;
+  const TRIAL_DAYS = 14, DAY = 86400000;
   const st = { deviceId: '', activated: false, daysLeft: TRIAL_DAYS, canVerify: true };
   const ls = { get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} } };
 

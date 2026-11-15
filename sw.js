@@ -1,5 +1,5 @@
 /* Chạy offline: lưu sẵn toàn bộ file của app. Đổi số VERSION mỗi lần cập nhật app. */
-const VERSION = 'qlq-v7';
+const VERSION = 'qlq-v8';
 const FILES = ['./', 'index.html', 'manifest.json', 'css/app.css', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', ...Array.from({ length: 20 }, (_, i) => `img/sp-${i + 1}.jpg`),
   'js/store.js', 'js/calc.js', 'js/xlsx.js', 'js/pubkey.js', 'js/license.js', 'js/seed.js', 'js/app.js',
   'js/views/ban.js', 'js/views/mon.js', 'js/views/topping.js', 'js/views/kho.js', 'js/views/baocao.js', 'js/views/luong.js', 'js/views/chiphi.js', 'js/views/khach.js', 'js/views/khuyenmai.js', 'js/views/caidat.js'];
