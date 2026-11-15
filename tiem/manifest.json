@@ -1,0 +1,17 @@
+{
+  "name": "Quản lý tiệm",
+  "short_name": "Quản lý tiệm",
+  "description": "Bán hàng, hàng hóa, tồn kho, khách nợ, thu chi cho tiệm tạp hóa và cửa hàng bán lẻ",
+  "lang": "vi",
+  "id": "quan-ly-tiem",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f5f6f8",
+  "theme_color": "#1d6fe0",
+  "icons": [
+    { "src": "../icons/tiem-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "../icons/tiem-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

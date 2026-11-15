@@ -11,6 +11,7 @@ Views.baocao = () => {
   const max = Math.max(...vals, 1);
   const today = Store.all('orders').filter(o => !o.cancelled && o.date === ymd());
   const top = Object.values(r.byProd).sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+  if (!License.can()) return baocaoBasic(m, r, vals, max, days, today, top);
   const stat = (lb, v, cls = '') => `<div class="stat"><div class="lb">${lb}</div><div class="v num ${cls}">${v}</div></div>`;
   return {
     title: 'Báo cáo',
@@ -46,7 +47,8 @@ Views.baocao = () => {
 };
 
 Views.them = () => {
-  const item = (href, emo, t, d) => `<a class="item" href="${href}"><span class="ico">${icon(emo)}</span><span class="grow"><span class="t">${t}</span><div class="d">${d}</div></span><span class="chev">›</span></a>`;
+  const lock = h => !License.can() && GATED.includes(h.slice(2)) ? '<span class="badge warn">Nâng cấp</span>' : '';
+  const item = (href, emo, t, d) => `<a class="item" href="${href}"><span class="ico">${icon(emo)}</span><span class="grow"><span class="t">${t}</span><div class="d">${d}</div></span>${lock(href)}<span class="chev">›</span></a>`;
   return {
     title: 'Thêm',
     html: `<div class="list">
@@ -62,6 +64,7 @@ Views.them = () => {
 
 /* Xuất báo cáo tháng ra file Excel: 7 sheet, các dòng cộng dùng công thức */
 Actions['bc-xlsx'] = () => {
+  if (!License.can()) return go('#/nangcap');
   const m = S.month, r = Calc.monthReport(m);
   const H = a => a.map(v => ({ v, s: 1 })), M = v => ({ v: Math.round(v || 0), s: 2 });
   const tong = [
@@ -113,3 +116,23 @@ Actions['bc-xlsx'] = () => {
   ]);
   saveFile(blob, `bao-cao-${m}.xlsx`);
 };
+
+/* Báo cáo của bản thường: chỉ doanh thu theo ngày, tháng và món bán chạy */
+function baocaoBasic(m, r, vals, max, days, today, top) {
+  return {
+    title: 'Báo cáo',
+    html: `${monthNav(m)}
+      <div class="hero"><div class="lb">Doanh thu ${monthLabel(m).toLowerCase()}</div><div class="v num">${money(r.revenue)}</div>
+        <div class="ft"><span>${r.count} đơn</span><span>Hôm nay: ${money(today.reduce((s, o) => s + o.total, 0))} · ${today.length} đơn</span></div></div>
+      <div class="card"><h3>Doanh thu theo ngày</h3>
+        <div class="bars">${vals.map(v => `<i class="${v ? '' : 'z'}" style="height:${Math.max(2, v / max * 100)}%" title="${money(v)}"></i>`).join('')}</div>
+        <div class="axis"><span>1</span><span>${Math.round(days / 2)}</span><span>${days}</span></div></div>
+      <div class="sub">Doanh thu từng ngày</div>
+      ${Object.keys(r.days).length ? `<div class="list">${Object.keys(r.days).sort().reverse().map(d => `<button class="item" data-act="bc-day" data-v="${d}">
+        <span class="grow"><span class="t">${THU[new Date(d + 'T00:00:00').getDay()]}, ${dmy(d)}</span><div class="d num">${r.days[d].count} đơn</div></span>
+        <b class="num">${money(r.days[d].revenue)}</b><span class="chev">›</span></button>`).join('')}</div>` : '<p class="muted small">Chưa có đơn nào trong tháng.</p>'}
+      <div class="card"><h3>Món bán chạy</h3>
+        ${top.length ? top.map(t => `<div class="line"><span>${esc(t.name)} <span class="muted small">× ${t.qty}</span></span><b class="num">${money(t.revenue)}</b></div>`).join('') : '<p class="muted small">Chưa có đơn nào trong tháng.</p>'}</div>
+      <a class="note" style="display:block" href="#/nangcap">Giá vốn, lãi gộp, lãi ròng và xuất Excel có ở bản nâng cấp · Bấm để xem</a>`,
+  };
+}

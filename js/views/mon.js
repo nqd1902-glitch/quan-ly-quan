@@ -7,7 +7,7 @@ const Mon = {
   cats() { return [...new Set(Store.all('products').map(p => p.category).filter(Boolean))]; },
   /* Cập nhật các dòng tính toán mà không vẽ lại ô đang gõ */
   refresh() {
-    const p = Mon.cur(); if (!p) return;
+    const p = Mon.cur(); if (!p || !License.can()) return;
     if (p.direct) { p.variants.forEach(v => { const el = $('#dv-' + v.id); if (el) el.innerHTML = `lãi ${money(v.price - (+v.cost || 0))} ${v.price ? `<span class="badge ${Calc.pctClass(Calc.costPct(v))}">${Math.round(Calc.costPct(v))}%</span>` : ''}`; }); return; }
     if (!$('#mon-cost')) return;
     const cell = f => '<td></td>' + p.variants.map(f).join('') + '<td></td>';
@@ -33,12 +33,23 @@ const Mon = {
           <button class="btn sm soft" data-act="mon-din" data-v="${v.id}">Nhập hàng</button><button class="btn sm soft" data-act="mon-dadj" data-v="${v.id}">Kiểm kê</button></div></div>`).join('')}
       <div class="btns"><button class="btn ghost" data-act="mon-addv">＋ Thêm quy cách</button>${p.variants.length > 1 ? '<button class="btn ghost" data-act="mon-delv">Bớt quy cách</button>' : ''}</div></div>`;
   },
+  /* Bản thường: chỉ nhập size và giá bán, không có công thức và giá cost */
+  basicCard(p) {
+    return `<div class="card"><h3>Size và giá bán</h3>
+      ${p.variants.map(v => `<div class="row2"><label>Size<input data-in="mon-vname" data-v="${v.id}" value="${esc(v.name)}" placeholder="Size"></label>
+        <label>Giá bán<input class="money" inputmode="numeric" data-in="mon-price" data-v="${v.id}" value="${moneyVal(v.price)}" placeholder="0"></label></div>`).join('')}
+      <div class="btns"><button class="btn ghost" data-act="mon-addv">＋ Thêm size</button>${p.variants.length > 1 ? '<button class="btn ghost" data-act="mon-delv">Bớt size</button>' : ''}</div>
+      <a class="note" style="display:block" href="#/nangcap">Công thức, định lượng và giá cost có ở bản nâng cấp · Bấm để xem</a></div>`;
+  },
   dv(el) { const p = Mon.cur(); return { p, v: p.variants.find(x => x.id === (el ? el.dataset.v : S.dvId)) }; },
 };
 
 Views.mon = id => {
   if (id === 'new') {
-    const p = Store.put('products', { name: '', category: S.cat !== 'Tất cả' ? S.cat : '', img: '', active: true, variants: [{ id: Store.uid(), name: 'Ly 700ml', price: 0, recipe: [] }] });
+    const cat = S.cat !== 'Tất cả' ? S.cat : '';
+    const p = Store.put('products', APP.has('recipe')
+      ? { name: '', category: cat, img: '', active: true, variants: [{ id: Store.uid(), name: 'Ly 700ml', price: 0, recipe: [] }] }
+      : { name: '', category: cat, img: '', active: true, direct: true, variants: [{ id: Store.uid(), name: 'Cái', price: 0, recipe: [], direct: true, cost: 0, stock: 0 }] });
     history.replaceState(null, '', '#/mon/' + p.id);
     return Views.mon(p.id);
   }
@@ -48,13 +59,13 @@ Views.mon = id => {
   const prods = Store.all('products');
   const cats = [...new Set(prods.map(p => p.category || 'Khác'))];
   return {
-    title: 'Món & công thức',
-    html: `<div class="list"><a class="item" href="#/topping"><span class="grow"><span class="t">Món bán kèm (topping)</span><div class="d">${Store.all('toppings').length} món · trân châu, thêm sữa, thêm đá…</div></span><span class="chev">›</span></a></div>` + (prods.length ? cats.map(c => `<div class="sub">${esc(c)}</div><div class="list">${prods.filter(p => (p.category || 'Khác') === c).map(p => `
+    title: APP.has('recipe') ? 'Món & công thức' : 'Hàng hóa',
+    html: (APP.has('topping') && License.can() ? `<div class="list"><a class="item" href="#/topping"><span class="grow"><span class="t">Món bán kèm (topping)</span><div class="d">${Store.all('toppings').length} món · trân châu, thêm sữa, thêm đá…</div></span><span class="chev">›</span></a></div>` : '') + (prods.length ? cats.map(c => `<div class="sub">${esc(c)}</div><div class="list">${prods.filter(p => (p.category || 'Khác') === c).map(p => `
       <a class="item" href="#/mon/${p.id}">${thumb(p)}
         <span class="grow"><span class="t">${esc(p.name || '(chưa đặt tên)')} ${p.active === false ? '<span class="badge gray">Ngừng bán</span>' : ''}</span>
-        ${p.variants.map(v => `<div class="d num">${esc(v.name)} · ${money(v.price)} · cost ${money(Calc.variantCost(v))} ${v.price ? `<span class="badge ${Calc.pctClass(Calc.costPct(v))}">${Math.round(Calc.costPct(v))}%</span>` : ''}${v.direct ? ` · tồn ${qty(v.stock)}` : ''}</div>`).join('')}
+        ${p.variants.map(v => `<div class="d num">${esc(v.name)} · ${money(v.price)}${License.can() ? ` · cost ${money(Calc.variantCost(v))} ${v.price ? `<span class="badge ${Calc.pctClass(Calc.costPct(v))}">${Math.round(Calc.costPct(v))}%</span>` : ''}` : ''}${v.direct ? ` · tồn ${qty(v.stock)}` : ''}</div>`).join('')}
         </span><span class="chev">›</span></a>`).join('')}</div>`).join('')
-      : emptyBox('', 'Chưa có món nào.<br>Bấm nút ＋ để thêm món và nhập công thức.'))
+      : emptyBox('', APP.has('recipe') ? 'Chưa có món nào.<br>Bấm nút ＋ để thêm món và nhập công thức.' : 'Chưa có hàng nào.<br>Bấm nút ＋ để thêm hàng, giá bán và giá vốn.'))
       + `<a class="fab" href="#/mon/new" aria-label="Thêm món">＋</a>`,
   };
 };
@@ -77,15 +88,16 @@ function monEdit(id) {
         <div class="photo">${thumb(p)}<div class="grow">
           <label class="btn soft">${p.img ? 'Đổi ảnh' : 'Chụp / chọn ảnh món'}<input type="file" accept="image/*" class="hidden" data-in="mon-img"></label>
           ${p.img ? '<button class="btn ghost" style="margin-top:8px" data-act="mon-img-del">Bỏ ảnh</button>' : '<div class="muted small" style="margin-top:6px">Dùng ảnh thật của món để dễ bấm khi bán.</div>'}</div></div>
-        <label>Tên món<input data-in="mon-f" data-f="name" value="${esc(p.name)}" placeholder="Ví dụ: Cà phê muối"></label>
+        <label>Tên ${APP.has('recipe') ? 'món' : 'hàng'}<input data-in="mon-f" data-f="name" value="${esc(p.name)}" placeholder="${APP.has('recipe') ? 'Ví dụ: Cà phê muối' : 'Ví dụ: Nước suối 500ml'}"></label>
         <label>Nhóm<input data-in="mon-f" data-f="category" list="catlist" value="${esc(p.category || '')}" placeholder="Nước ép, Trà…"></label>
         <datalist id="catlist">${Mon.cats().map(c => `<option value="${esc(c)}">`).join('')}</datalist>
         <label class="check"><input type="checkbox" data-in="mon-f" data-f="active" ${p.active !== false ? 'checked' : ''}> Đang bán</label>
-        <label>Loại</label>
-        <div class="seg"><button class="${p.direct ? '' : 'on'}" data-act="mon-kind" data-v="recipe">Pha chế theo công thức</button><button class="${p.direct ? 'on' : ''}" data-act="mon-kind" data-v="direct">Hàng bán thẳng</button></div>
+        ${APP.has('recipe') ? `<label>Loại</label>
+        <div class="seg"><button class="${p.direct ? '' : 'on'}" data-act="mon-kind" data-v="recipe">Pha chế theo công thức</button><button class="${p.direct ? 'on' : ''}" data-act="mon-kind" data-v="direct">Hàng bán thẳng</button></div>` : ''}
       </div>
       ${p.direct ? Mon.directCard(p) : ''}
-      <div class="card" ${p.direct ? 'hidden' : ''}><h3>Công thức & định lượng</h3>
+      ${!p.direct && !License.can() ? Mon.basicCard(p) : ''}
+      <div class="card" ${p.direct || !License.can() ? 'hidden' : ''}><h3>Công thức & định lượng</h3>
         <div class="muted small">Mỗi cột là một size. Nhập lượng nguyên liệu cho từng size, app tự tính giá cost.</div>
         <div class="mx-wrap"><table class="mx">
           <thead><tr><th class="muted small">Nguyên liệu</th>${p.variants.map(v => `<th><input data-in="mon-vname" data-v="${v.id}" value="${esc(v.name)}" placeholder="Size"></th>`).join('')}<th></th></tr></thead>

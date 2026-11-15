@@ -8,7 +8,7 @@ const Store = (() => {
   let idb = null;
 
   const open = () => new Promise((res, rej) => {
-    const r = indexedDB.open('quanlyquan', 3);
+    const r = indexedDB.open(APP.db, 3);
     r.onupgradeneeded = () => ALL.forEach(c => { if (!r.result.objectStoreNames.contains(c)) r.result.createObjectStore(c, { keyPath: 'id' }); });
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);

@@ -3,7 +3,7 @@
 const Kho = {
   directHtml() {
     const d = Calc.directItems(); if (!d.length || S.khoFilter !== 'Tất cả') return '';
-    return `<div class="sub">Hàng bán thẳng</div><div class="list">${d.map(({ p, v }) => `<a class="item" href="#/mon/${p.id}">${thumb(p)}<span class="grow"><span class="t">${esc(p.name)}</span><div class="d num">${esc(v.name)} · giá vốn ${money(v.cost)}</div></span><span class="right"><b class="num">${qty(v.stock)}</b><br>${(+v.stock || 0) <= 0 ? '<span class="badge bad">Hết hàng</span>' : ''}</span><span class="chev">›</span></a>`).join('')}</div>`;
+    return `<div class="sub">${APP.has('ingredients') ? 'Hàng bán thẳng' : 'Hàng trong kho'}</div><div class="list">${d.map(({ p, v }) => `<a class="item" href="#/mon/${p.id}">${thumb(p)}<span class="grow"><span class="t">${esc(p.name)}</span><div class="d num">${esc(v.name)} · giá vốn ${money(v.cost)}</div></span><span class="right"><b class="num">${qty(v.stock)}</b><br>${(+v.stock || 0) <= 0 ? '<span class="badge bad">Hết hàng</span>' : ''}</span><span class="chev">›</span></a>`).join('')}</div>`;
   },
   stockText(ing) { return `${qty((+ing.stock || 0) / (+ing.factor || 1))} ${esc(ing.buyUnit)}`; },
   form(ing) {
@@ -39,6 +39,7 @@ const Kho = {
 const MOVE = { in: 'Nhập hàng', waste: 'Xuất hủy', adjust: 'Kiểm kê' };
 
 Views.kho = id => {
+  if (!APP.has('ingredients')) return khoTiem();
   if (id) return khoDetail(id);
   const ings = Store.all('ingredients').sort((a, b) => a.name.localeCompare(b.name, 'vi'));
   const groups = [...new Set(ings.map(i => i.group || 'Khác'))];
@@ -164,3 +165,15 @@ Actions['kho-del'] = () => {
     Store.remove('ingredients', S.khoId); go('#/kho'); UI.toast('Đã xóa');
   });
 };
+
+/* Kho của app tiệm: chỉ có hàng bán thẳng */
+function khoTiem() {
+  const d = Calc.directItems(), out = d.filter(x => (+x.v.stock || 0) <= 0).length;
+  return {
+    title: 'Kho',
+    html: `<div class="stats">
+        <div class="stat"><div class="lb">Giá trị tồn kho</div><div class="v num">${money(Calc.directValue())}</div></div>
+        <div class="stat"><div class="lb">Hết hàng</div><div class="v num">${out} <span class="muted small">/ ${d.length} loại</span></div></div></div>
+      ${d.length ? Kho.directHtml() + '<p class="muted small">Bấm vào một mặt hàng để nhập hàng hoặc kiểm kê.</p>' : emptyBox('', 'Chưa có hàng nào.<br>Vào mục <b>Hàng hóa</b> để thêm hàng, giá vốn và nhập kho.')}`,
+  };
+}

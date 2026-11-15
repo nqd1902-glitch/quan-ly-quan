@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Quản lý tiệm</title>
+<meta name="theme-color" content="#1d6fe0">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Quản lý tiệm">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="../icons/tiem-192.png">
+<link rel="apple-touch-icon" href="../icons/tiem-180.png">
+<link rel="stylesheet" href="../css/app.css">
+</head>
+<body>
+<header id="hdr">
+  <button id="back" class="hidden" data-act="back" aria-label="Quay lại">‹</button>
+  <h1 id="title"></h1>
+  <div id="hdr-right"></div>
+</header>
+<main id="view"></main>
+<div id="cartbar" class="hidden"></div>
+<nav id="nav">
+  <a href="#/ban" data-tab="ban"><svg viewBox="0 0 24 24"><path d="M3 9l1.5-5h15L21 9M4 9v11h16V9M3 9h18M9 20v-6h6v6"/></svg>Bán hàng</a>
+  <a href="#/mon" data-tab="mon"><svg viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8L3 12zM7.5 8.5h.01"/></svg>Hàng hóa</a>
+  <a href="#/kho" data-tab="kho"><svg viewBox="0 0 24 24"><path d="M3 8l9-5 9 5v8l-9 5-9-5V8zM3 8l9 5 9-5M12 13v8"/></svg>Kho</a>
+  <a href="#/baocao" data-tab="baocao"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-8M21 20H3"/></svg>Báo cáo</a>
+  <a href="#/them" data-tab="them"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>Thêm</a>
+</nav>
+<div id="sheet-wrap" class="hidden"><div class="backdrop" data-act="sheet-close"></div><div id="sheet"></div></div>
+<div id="toast"></div>
+<div id="overlay" class="hidden"></div>
+<div id="print"></div>
+
+<script>window.APP_MODE = 'tiem';</script>
+<script src="../js/mode.js"></script>
+<script src="../js/store.js"></script>
+<script src="../js/calc.js"></script>
+<script src="../js/xlsx.js"></script>
+<script src="../js/pubkey.js"></script>
+<script src="../js/license.js"></script>
+<script src="../js/seed.js"></script>
+<script src="../js/app.js"></script>
+<script src="../js/views/ban.js"></script>
+<script src="../js/views/mon.js"></script>
+<script src="../js/views/topping.js"></script>
+<script src="../js/views/kho.js"></script>
+<script src="../js/views/baocao.js"></script>
+<script src="../js/views/luong.js"></script>
+<script src="../js/views/chiphi.js"></script>
+<script src="../js/views/khach.js"></script>
+<script src="../js/views/khuyenmai.js"></script>
+<script src="../js/views/caidat.js"></script>
+<script>App.start();</script>
+</body>
+</html>

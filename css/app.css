@@ -255,3 +255,5 @@ body.hasbg #hdr{background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop
 .dv{border-top:1px solid var(--line);margin-top:14px;padding-top:4px}
 .dv .row3 label{margin-top:10px}
 .dv .row3 input{padding:10px 8px}
+
+[hidden]{display:none!important}

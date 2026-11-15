@@ -5,13 +5,13 @@ Views.caidat = () => {
   return {
     title: 'Cài đặt', back: '#/them', tab: 'them',
     html: `<div class="card"><h3>Quán</h3>
-        <label style="margin-top:0">Tên quán<input data-in="cd-name" value="${esc(Store.setting('shopName', ''))}" maxlength="40"></label>
+        <label style="margin-top:0">Tên ${APP.word}<input data-in="cd-name" value="${esc(Store.setting('shopName', ''))}" maxlength="40"></label>
         <label>Giao diện</label>
         <div class="seg">${[['auto', 'Theo máy'], ['light', 'Sáng'], ['dark', 'Tối']].map(t => `<button class="${theme === t[0] ? 'on' : ''}" data-act="cd-theme" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>
       </div>
-      <div class="card"><h3>Hình ảnh của quán</h3>
+      <div class="card" ${License.can() ? '' : 'hidden'}><h3>Hình ảnh của quán</h3>
         <label style="margin-top:0">Màu chủ đạo</label>
-        <div class="swatches">${Object.keys(ACCENTS).map(k => `<button class="${Store.setting('accent', 'green') === k ? 'on' : ''}" style="background:${ACCENTS[k][0]}" data-act="cd-accent" data-v="${k}" aria-label="${k}"></button>`).join('')}</div>
+        <div class="swatches">${Object.keys(ACCENTS).map(k => `<button class="${Store.setting('accent', APP.accent) === k ? 'on' : ''}" style="background:${ACCENTS[k][0]}" data-act="cd-accent" data-v="${k}" aria-label="${k}"></button>`).join('')}</div>
         ${[['logo', 'Logo quán', 'Hiện cạnh tên quán và trên bill', 320], ['cover', 'Ảnh bìa', 'Ảnh lớn đầu màn hình bán hàng', 1200], ['bgImg', 'Ảnh nền app', 'Phủ mờ phía sau toàn bộ app', 1200]].map(([k, t, d, max]) => { const v = Store.setting(k, ''); return `
         <div class="row imgrow">${v ? `<img class="th" src="${v}" alt="">` : '<span class="th mono">+</span>'}
           <span class="grow"><b>${t}</b><div class="muted small">${d}</div></span>
@@ -34,14 +34,14 @@ Views.caidat = () => {
         <button class="btn" data-act="backup">Sao lưu ra file</button>
         <label class="btn soft" style="color:var(--pri)">Khôi phục từ file<input type="file" accept=".json,application/json" class="hidden" data-in="cd-restore"></label>
       </div>
-      <div class="card"><h3>Bản quyền ${L.activated ? '<span class="badge ok">Đã kích hoạt</span>' : `<span class="badge warn">Dùng thử còn ${L.daysLeft} ngày</span>`}</h3>
-        ${L.activated ? `<div class="muted small">Mã máy</div><div class="code">${L.deviceId}</div>` : License.boxHtml()}
+      <div class="card"><h3>Bản quyền ${L.tier ? `<span class="badge ok">${License.tierName()}</span>` : `<span class="badge warn">Dùng thử còn ${L.daysLeft} ngày</span>`}</h3>
+        ${L.tier === 'pro' ? `<div class="muted small">Mã máy</div><div class="code">${L.deviceId}</div>` : (L.tier === 'basic' ? '<p class="muted small" style="margin-top:0">Đang dùng bản thường. Nhập mã của bản nâng cấp để mở thêm tính năng.</p>' : '') + License.boxHtml() + '<a class="btn soft" href="#/nangcap">Xem tính năng bản nâng cấp</a>'}
       </div>
       <div class="card"><h3>Dữ liệu</h3>
         <button class="btn soft" data-act="cd-seed">Nạp dữ liệu mẫu</button>
         <button class="btn danger" data-act="cd-wipe">Xóa toàn bộ dữ liệu</button>
       </div>
-      <p class="muted small" style="text-align:center">Quản lý quán · bản offline 1.0</p>`,
+      <p class="muted small" style="text-align:center">${APP.name} · bản offline 1.1</p>`,
   };
 };
 
@@ -86,6 +86,8 @@ Actions['lic-copy'] = async () => {
 Actions['lic-activate'] = async () => {
   const key = $('#lic-key').value.trim();
   if (!key) return UI.toast('Bạn dán mã kích hoạt vào trước nhé');
-  if (await License.activate(key)) { UI.toast('Kích hoạt thành công'); if ($('#overlay').classList.contains('hidden')) render(); else App.enter(); }
+  if (await License.activate(key)) { UI.toast('Đã kích hoạt ' + License.tierName().toLowerCase()); if ($('#overlay').classList.contains('hidden')) render(); else App.enter(); }
   else UI.toast(License.state.canVerify ? 'Mã kích hoạt không đúng với máy này' : 'Chưa kiểm tra được mã, hãy mở app bằng link https');
 };
+
+Views.nangcap = () => ({ title: 'Bản nâng cấp', back: '#/them', tab: 'them', html: License.upgradeHtml() });

@@ -80,10 +80,12 @@ async function saveFile(blob, name) {
 
 function go(h) { if (location.hash === h) render(); else location.hash = h; }
 
+const GATED = ['km', 'thuchi', 'chiphi', 'khach', 'luong', 'topping'];
 function render() {
   const parts = (location.hash.replace(/^#\/?/, '') || 'ban').split('/');
   const name = Views[parts[0]] ? parts[0] : 'ban';
-  const out = Views[name](...parts.slice(1));
+  // màn hình chỉ có ở bản nâng cấp: bản thường mở ra trang giới thiệu nâng cấp
+  const out = GATED.includes(name) && !License.can() ? Views.nangcap() : Views[name](...parts.slice(1));
   if (!out) return;
   const same = S.lastRoute === location.hash, y = window.scrollY;
   S.lastRoute = location.hash;
@@ -104,7 +106,7 @@ function applyTheme() {
   const root = document.documentElement, t = Store.setting('theme', 'auto');
   if (t === 'auto') delete root.dataset.theme; else root.dataset.theme = t;
   const dark = t === 'dark' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-  const a = (ACCENTS[Store.setting('accent', 'green')] || ACCENTS.green)[dark ? 1 : 0];
+  const a = (ACCENTS[Store.setting('accent', APP.accent)] || ACCENTS.green)[dark ? 1 : 0];
   root.style.setProperty('--acc', a);
   root.style.setProperty('--acc-soft', `color-mix(in srgb, ${a} 14%, var(--card))`);
   const bg = Store.setting('bgImg', '');
@@ -146,7 +148,7 @@ const App = {
     applyTheme();
     window.addEventListener('hashchange', render);
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
-    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register(APP.base + 'sw.js').catch(() => {});
     App.enter();
   },
   enter() {
@@ -161,16 +163,17 @@ const App = {
 /* Màn hình chào lần đầu */
 const Onboard = {
   html() {
-    return `<div class="in"><div class="logo"><img src="icons/icon-192.png" alt=""></div><h1>Quản lý quán</h1>
-      <p class="muted">Công thức và giá cost, kho, bán hàng, khuyến mãi, lương, chi phí – tất cả trong điện thoại, không cần mạng.</p>
-      <label>Tên quán của bạn<input id="ob-name" placeholder="Ví dụ: Home Juice" maxlength="40"></label>
+    const tiem = APP.mode === 'tiem';
+    return `<div class="in"><div class="logo"><img src="${APP.base}icons/${APP.icon}" alt=""></div><h1>${APP.name}</h1>
+      <p class="muted">${tiem ? 'Bán hàng, hàng hóa và tồn kho, khách nợ, thu chi – tất cả trong điện thoại, không cần mạng.' : 'Công thức và giá cost, kho, bán hàng, khuyến mãi, lương, thu chi – tất cả trong điện thoại, không cần mạng.'}</p>
+      <label>Tên ${APP.word} của bạn<input id="ob-name" placeholder="${tiem ? 'Ví dụ: Tạp hóa Cô Ba' : 'Ví dụ: Home Juice'}" maxlength="40"></label>
       <button class="btn" data-act="ob-sample">Xem thử với dữ liệu mẫu</button>
-      <button class="btn soft" data-act="ob-blank">Bắt đầu với quán trống</button>
-      <p class="muted small">Dữ liệu mẫu là thực đơn một quán nước ép – trái cây để bạn xem cách app hoạt động. Xóa được trong Cài đặt.</p></div>`;
+      <button class="btn soft" data-act="ob-blank">Bắt đầu với ${APP.word} trống</button>
+      <p class="muted small">${tiem ? 'Dữ liệu mẫu là vài mặt hàng tạp hóa với giá ước lượng để bạn xem cách app hoạt động.' : 'Dữ liệu mẫu là thực đơn một quán nước ép – trái cây để bạn xem cách app hoạt động.'} Xóa được trong Cài đặt.</p></div>`;
   },
   finish(sample) {
     const name = $('#ob-name').value.trim();
-    if (!name) { UI.toast('Bạn nhập tên quán trước nhé'); $('#ob-name').focus(); return; }
+    if (!name) { UI.toast(`Bạn nhập tên ${APP.word} trước nhé`); $('#ob-name').focus(); return; }
     Store.setSetting('shopName', name);
     if (sample) Seed.load();
     location.hash = '#/ban';

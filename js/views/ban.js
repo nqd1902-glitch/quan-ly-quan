@@ -33,11 +33,12 @@ const Cart = {
     const subtotal = lines.reduce((s, l) => s + l.price * l.qty, 0);
     const today = ymd();
     let promo = null;
-    if (S.promoId === 'auto') promo = Calc.bestPromo(lines, today);
-    else if (S.promoId !== 'none') promo = Store.get('promos', S.promoId);
+    const pro = License.can(); // khuyến mãi và giảm thêm chỉ có ở bản nâng cấp
+    if (pro && S.promoId === 'auto') promo = Calc.bestPromo(lines, today);
+    else if (pro && S.promoId !== 'none') promo = Store.get('promos', S.promoId);
     const promoDisc = promo ? Calc.promoDiscount(promo, lines, today) : 0;
     if (!promoDisc) promo = null;
-    const discount = Math.min(subtotal, promoDisc + (S.manualDisc || 0));
+    const discount = Math.min(subtotal, promoDisc + (pro ? S.manualDisc || 0 : 0));
     return { lines, subtotal, promo, promoDisc, discount, total: subtotal - discount };
   },
   bar() {
@@ -62,20 +63,20 @@ const Cart = {
         <b class="num" style="min-width:22px;text-align:center">${l.qty}</b>
         <button class="qtybtn" data-act="cart-qty" data-k="${esc(l.key)}" data-d="1">＋</button>
       </div>`).join('')}
-      <label>Khách hàng
+      <label ${License.can() ? '' : 'hidden'}>Khách hàng
         <select data-in="cart-cust"><option value="">Khách lẻ</option>${custs.map(c => `<option value="${c.id}" ${S.custId === c.id ? 'selected' : ''}>${esc(c.name)}${c.phone ? ' · ' + esc(c.phone) : ''}</option>`).join('')}<option value="__new">＋ Thêm khách mới…</option></select></label>
-      <label>Khuyến mãi
+      <label ${License.can() ? '' : 'hidden'}>Khuyến mãi
         <select data-in="cart-promo">
           <option value="auto" ${S.promoId === 'auto' ? 'selected' : ''}>Tự chọn mức giảm tốt nhất</option>
           <option value="none" ${S.promoId === 'none' ? 'selected' : ''}>Không áp dụng</option>
           ${promos.map(pr => `<option value="${pr.id}" ${S.promoId === pr.id ? 'selected' : ''}>${esc(pr.name)} (−${money(Calc.promoDiscount(pr, s.lines, today))})</option>`).join('')}
         </select></label>
-      <label>Giảm thêm (đ)<input class="money" inputmode="numeric" data-in="cart-disc" value="${moneyVal(S.manualDisc)}" placeholder="0"></label>
+      <label ${License.can() ? '' : 'hidden'}>Giảm thêm (đ)<input class="money" inputmode="numeric" data-in="cart-disc" value="${moneyVal(S.manualDisc)}" placeholder="0"></label>
       <label>Thanh toán</label>
-      <div class="seg">${Object.keys(PAY).map(k => `<button class="${S.pay === k ? 'on' : ''}" data-act="cart-pay" data-v="${k}">${PAY[k]}</button>`).join('')}</div>
+      <div class="seg">${Object.keys(PAY).filter(k => k !== 'debt' || License.can()).map(k => `<button class="${S.pay === k ? 'on' : ''}" data-act="cart-pay" data-v="${k}">${PAY[k]}</button>`).join('')}</div>
       <div id="cart-sum">${Cart.sumHtml(s)}</div>
       <button class="btn" data-act="cart-checkout">Chốt đơn</button>
-      <div class="btns"><button class="btn soft" data-act="cart-hold">Lưu tạm</button><button class="btn ghost" data-act="cart-clear">Xóa đơn</button></div>`);
+      <div class="btns">${APP.has('tabs') && License.can() ? '<button class="btn soft" data-act="cart-hold">Lưu tạm</button>' : ''}<button class="btn ghost" data-act="cart-clear">Xóa đơn</button></div>`);
   },
   sumHtml(s) {
     return `<div style="margin-top:14px">
@@ -121,11 +122,11 @@ const Cart = {
 
 const Ban = {
   prods() { return Store.all('products').filter(p => p.active !== false && p.name && p.variants.length); },
-  topsFor(p) { return Store.all('toppings').filter(t => t.active !== false && t.name && (!t.cats || !t.cats.length || t.cats.includes(p.category || 'Khác'))); },
+  topsFor(p) { if (!APP.has('topping') || !License.can()) return []; return Store.all('toppings').filter(t => t.active !== false && t.name && (!t.cats || !t.cats.length || t.cats.includes(p.category || 'Khác'))); },
   gridHtml() {
     const q = S.q.trim().toLowerCase();
     const list = Ban.prods().filter(p => (S.cat === 'Tất cả' || (p.category || 'Khác') === S.cat) && (!q || p.name.toLowerCase().includes(q)));
-    if (!list.length) return emptyBox('', q ? 'Không tìm thấy món nào khớp.' : 'Chưa có món nào đang bán.<br>Vào mục <b>Món</b> để thêm món và công thức.');
+    if (!list.length) return emptyBox('', q ? 'Không tìm thấy món nào khớp.' : `Chưa có gì đang bán.<br>Vào mục <b>${APP.has('recipe') ? 'Món' : 'Hàng hóa'}</b> để thêm.`);
     return `<div class="grid">${list.map(p => {
       const prices = p.variants.map(v => v.price), min = Math.min(...prices), n = Cart.count(p.id);
       return `<button class="pcard" data-act="ban-add" data-id="${p.id}">
@@ -156,7 +157,7 @@ Views.ban = () => {
     right: `${Store.all('tabs').length ? `<button class="hbtn" data-act="tabs-open">Đơn tạm · ${Store.all('tabs').length}</button>` : ''}<a class="hbtn" href="#/don">Đơn hôm nay</a>`,
     html: `${!L.activated && L.daysLeft <= 3 ? `<a class="note" style="display:block;margin:0 0 10px" href="#/caidat">Còn ${L.daysLeft} ngày dùng thử · Bấm để kích hoạt bản quyền</a>` : ''}
       ${cover ? `<div class="cover"><img src="${cover}" alt=""><div class="cv-t"><b>${esc(Store.setting('shopName', ''))}</b><span>${esc(Store.setting('slogan', ''))}</span></div></div>` : ''}
-      <div class="search">${icon('search')}<input type="search" placeholder="Tìm món" value="${esc(S.q)}" data-in="ban-q"></div>
+      <div class="search">${icon('search')}<input type="search" placeholder="Tìm ${APP.has('recipe') ? 'món' : 'hàng'}" value="${esc(S.q)}" data-in="ban-q"></div>
       <div class="chips">${cats.map(c => `<button class="chip ${c === S.cat ? 'on' : ''}" data-act="ban-cat" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>
       <div id="ban-grid">${Ban.gridHtml()}</div>`,
   };

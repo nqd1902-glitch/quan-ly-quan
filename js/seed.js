@@ -11,7 +11,21 @@ const Seed = {
       if (m && p.img === undefined) { p.img = Seed.IMG[+m[1]] ? `img/sp-${Seed.IMG[+m[1]]}.jpg` : ''; Store.put('products', p); }
     });
   },
+  /* Dữ liệu mẫu cho app tiệm: vài mặt hàng tạp hóa, giá bán và giá vốn là SỐ ƯỚC LƯỢNG để minh họa */
+  loadTiem() {
+    // [tên, nhóm, quy cách, giá bán, giá vốn, tồn]
+    [['Nước suối 500ml', 'Nước giải khát', 'Chai', 5000, 3500, 48], ['Nước ngọt lon', 'Nước giải khát', 'Lon', 10000, 7500, 24],
+      ['Bia lon', 'Nước giải khát', 'Lon', 15000, 12500, 24], ['Mì gói', 'Thực phẩm', 'Gói', 5000, 3800, 60],
+      ['Trứng gà', 'Thực phẩm', 'Quả', 3500, 2800, 60], ['Gạo', 'Thực phẩm', 'Kg', 20000, 16500, 50],
+      ['Dầu ăn 1 lít', 'Gia vị', 'Chai', 45000, 39000, 12], ['Nước mắm', 'Gia vị', 'Chai', 30000, 25000, 12],
+      ['Đường', 'Gia vị', 'Kg', 25000, 21000, 20], ['Bột giặt 800g', 'Hóa phẩm', 'Gói', 35000, 30000, 10],
+      ['Giấy vệ sinh', 'Hóa phẩm', 'Lốc', 40000, 34000, 10]].forEach(([name, category, vn, price, cost, stock], i) =>
+      Store.put('products', { id: 's_t' + i, name, category, img: '', active: true, direct: true, variants: [{ id: 's_t' + i + 'v0', name: vn, price, recipe: [], direct: true, cost, stock }] }));
+    const m = new Date();
+    Store.put('expenses', { id: 's_e1', category: 'Mặt bằng', amount: 2000000, date: `${m.getFullYear()}-${String(m.getMonth() + 1).padStart(2, '0')}-01`, note: '', recurring: true });
+  },
   load() {
+    if (APP.mode === 'tiem') return Seed.loadTiem();
     // [id, tên, nhóm, đv mua, đv dùng, quy đổi, giá mua, % dùng được, tồn (đv mua), báo hết (đv mua)]
     const ING = [
       ['nho', 'Nho xanh', 'Trái cây', 'kg', 'g', 1000, 50000, 95, 6, 2],
