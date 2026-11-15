@@ -12,6 +12,7 @@ const Calc = {
   rawQty(ing, qty) { return qty / Calc.yieldOf(ing); },
   lineCost(r) { const ing = Store.get('ingredients', r.ingId); return ing ? Calc.unitCost(ing) * (+r.qty || 0) : 0; },
   variantCost(v) { return (v.recipe || []).reduce((s, r) => s + Calc.lineCost(r), 0); },
+  toppingCost(t) { const ing = t.ingId && Store.get('ingredients', t.ingId); return ing ? Calc.unitCost(ing) * (+t.qty || 0) : 0; },
   costPct(v) { return v.price > 0 ? Calc.variantCost(v) / v.price * 100 : 0; },
   pctClass(p) { return p > 50 ? 'bad' : p > 35 ? 'warn' : 'ok'; },
 
@@ -42,11 +43,11 @@ const Calc = {
     return true;
   },
   promoDiscount(pr, lines, day) {
-    const subtotal = lines.reduce((s, l) => s + l.v.price * l.qty, 0);
+    const subtotal = lines.reduce((s, l) => s + (l.price ?? l.v.price) * l.qty, 0);
     if (!Calc.promoValid(pr, subtotal, day)) return 0;
     let base = subtotal;
-    if (pr.scope === 'category') base = lines.filter(l => (l.p.category || 'Khác') === pr.target).reduce((s, l) => s + l.v.price * l.qty, 0);
-    if (pr.scope === 'product') base = lines.filter(l => l.p.id === pr.target).reduce((s, l) => s + l.v.price * l.qty, 0);
+    if (pr.scope === 'category') base = lines.filter(l => (l.p.category || 'Khác') === pr.target).reduce((s, l) => s + (l.price ?? l.v.price) * l.qty, 0);
+    if (pr.scope === 'product') base = lines.filter(l => l.p.id === pr.target).reduce((s, l) => s + (l.price ?? l.v.price) * l.qty, 0);
     if (base <= 0) return 0;
     const d = pr.type === 'percent' ? base * (+pr.value || 0) / 100 : Math.min(+pr.value || 0, base);
     return Math.round(Math.min(d, base));

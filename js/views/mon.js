@@ -34,7 +34,7 @@ Views.mon = id => {
   const cats = [...new Set(prods.map(p => p.category || 'Khác'))];
   return {
     title: 'Món & công thức',
-    html: (prods.length ? cats.map(c => `<div class="sub">${esc(c)}</div><div class="list">${prods.filter(p => (p.category || 'Khác') === c).map(p => `
+    html: `<div class="list"><a class="item" href="#/topping"><span class="grow"><span class="t">Món bán kèm (topping)</span><div class="d">${Store.all('toppings').length} món · trân châu, thêm sữa, thêm đá…</div></span><span class="chev">›</span></a></div>` + (prods.length ? cats.map(c => `<div class="sub">${esc(c)}</div><div class="list">${prods.filter(p => (p.category || 'Khác') === c).map(p => `
       <a class="item" href="#/mon/${p.id}">${thumb(p)}
         <span class="grow"><span class="t">${esc(p.name || '(chưa đặt tên)')} ${p.active === false ? '<span class="badge gray">Ngừng bán</span>' : ''}</span>
         ${p.variants.map(v => `<div class="d num">${esc(v.name)} · ${money(v.price)} · cost ${money(Calc.variantCost(v))} ${v.price ? `<span class="badge ${Calc.pctClass(Calc.costPct(v))}">${Math.round(Calc.costPct(v))}%</span>` : ''}</div>`).join('')}

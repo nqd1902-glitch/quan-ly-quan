@@ -26,6 +26,7 @@ const ICONS = {
   lock: 'M6 11h12v9H6zM8.5 11V7.5a3.5 3.5 0 017 0V11',
   search: 'M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4',
   inbox: 'M3 13l3-8h12l3 8v6H3v-6zM3 13h5l1 2h6l1-2h5',
+  help: 'M12 21a9 9 0 100-18 9 9 0 000 18zM9.5 9.5a2.5 2.5 0 114 2c-.9.6-1.5 1.1-1.5 2M12 17h.01',
 };
 const icon = n => `<svg class="ic" viewBox="0 0 24 24"><path d="${ICONS[n] || ''}"/></svg>`;
 const emptyBox = (_, text) => `<div class="empty">${icon('inbox')}<div>${text}</div></div>`;
@@ -63,6 +64,19 @@ Actions['confirm-ok'] = () => { const cb = UI._cb; UI._cb = null; UI.closeSheet(
 Actions.back = () => go(S.back || '#/ban');
 Actions.month = el => { S.month = shiftMonth(S.month, +el.dataset.v); render(); };
 Actions.go = el => go(el.dataset.v);
+
+/* Đưa file cho người dùng: điện thoại mở bảng chia sẻ (lưu vào Tệp, gửi Zalo…), máy tính tải thẳng về */
+async function saveFile(blob, name) {
+  const file = new File([blob], name, { type: blob.type });
+  try {
+    if (/Android|iPhone|iPad/i.test(navigator.userAgent) && navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return true; }
+  } catch (e) { if (e && e.name === 'AbortError') return false; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  UI.toast('Đã lưu file ' + name);
+  return true;
+}
 
 function go(h) { if (location.hash === h) render(); else location.hash = h; }
 

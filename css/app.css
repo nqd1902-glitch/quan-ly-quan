@@ -242,3 +242,15 @@ body.hasbg #hdr{background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop
   body>*:not(#print){display:none!important}
   #print{display:block}
 }
+
+/* chọn size / món bán kèm */
+.opt{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:13px 14px;border:1px solid var(--line);border-radius:12px;margin-top:8px;font-weight:600}
+.opt .dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);flex:none}
+.opt.sq .dot{border-radius:6px}
+.opt.on{border-color:var(--acc);background:var(--acc-soft)}
+.opt.on .dot{border-color:var(--acc);background:var(--acc);box-shadow:inset 0 0 0 3px var(--card)}
+/* mã QR chuyển khoản */
+.qrbox{display:flex;align-items:center;gap:14px;margin-top:12px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--card)}
+.qrbox svg{flex:none;border-radius:8px;max-width:52%;height:auto}
+.bill .b-qr{text-align:center;margin:1mm 0}
+.bill .b-qr svg{width:30mm;height:30mm}
