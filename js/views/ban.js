@@ -1,5 +1,5 @@
 'use strict';
-/* Bán hàng: lưới món, chọn size + món bán kèm, giỏ, khuyến mãi, QR chuyển khoản, chốt đơn, danh sách đơn, bill */
+/* Bán hàng: lưới món, chọn size + món bán kèm, giỏ, khuyến mãi, chốt đơn, danh sách đơn, bill */
 const PAY = { cash: 'Tiền mặt', bank: 'Chuyển khoản' };
 
 const Cart = {
@@ -77,8 +77,7 @@ const Cart = {
       <div class="line"><span class="muted">Tạm tính</span><span class="num">${money(s.subtotal)}</span></div>
       ${s.promo ? `<div class="line"><span class="muted">Khuyến mãi: ${esc(s.promo.name)}</span><span class="num">−${money(s.promoDisc)}</span></div>` : ''}
       ${S.manualDisc ? `<div class="line"><span class="muted">Giảm thêm</span><span class="num">−${money(Math.min(S.manualDisc, s.subtotal - s.promoDisc))}</span></div>` : ''}
-      <div class="line total"><span>Tổng thu</span><span class="num">${money(s.total)}</span></div>
-      ${S.pay === 'bank' ? (QRPay.ready() ? QRPay.box(s.total) : '<p class="muted small">Muốn hiện mã QR để khách quét: vào Thêm → Cài đặt → Chuyển khoản QR, nhập ngân hàng và số tài khoản.</p>') : ''}</div>`;
+      <div class="line total"><span>Tổng thu</span><span class="num">${money(s.total)}</span></div></div>`;
   },
   checkout() {
     const s = Cart.sum();
@@ -217,7 +216,6 @@ const Bill = {
       ${o.discount ? row('Tạm tính', n(o.subtotal)) + row(esc(o.promoName || 'Giảm giá'), '-' + n(o.discount)) : ''}
       ${row('TỔNG CỘNG', money(o.total), 'b-total')}
       ${row('Thanh toán', PAY[o.pay] || '')}
-      ${QRPay.ready() && Store.setting('billQR', true) ? `<div class="b-hr"></div><div class="b-c">Quét mã để chuyển khoản</div><div class="b-qr">${QR.svg(QRPay.payload(o.total, Store.setting('qrNote', 'Thanh toan don hang')), 132)}</div><div class="b-c">${esc(QRPay.bankName())} · ${esc(Store.setting('qrAcc', ''))}</div>` : ''}
       <div class="b-hr"></div>
       ${foot ? `<div class="b-c">${esc(foot)}</div>` : ''}</div>`;
   },

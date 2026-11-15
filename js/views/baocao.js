@@ -1,5 +1,8 @@
 'use strict';
 /* Báo cáo tháng + menu Thêm */
+const THU = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7'];
+Actions['bc-day'] = el => { S.day = el.dataset.v; go('#/don'); };
+
 Views.baocao = () => {
   const m = S.month, r = Calc.monthReport(m);
   const [y, mo] = m.split('-').map(Number);
@@ -25,6 +28,10 @@ Views.baocao = () => {
       <div class="card"><h3>Doanh thu theo ngày</h3>
         <div class="bars">${vals.map(v => `<i class="${v ? '' : 'z'}" style="height:${Math.max(2, v / max * 100)}%" title="${money(v)}"></i>`).join('')}</div>
         <div class="axis"><span>1</span><span>${Math.round(days / 2)}</span><span>${days}</span></div></div>
+      <div class="sub">Doanh thu từng ngày</div>
+      ${Object.keys(r.days).length ? `<div class="list">${Object.keys(r.days).sort().reverse().map(d => { const x = r.days[d]; return `<button class="item" data-act="bc-day" data-v="${d}">
+        <span class="grow"><span class="t">${THU[new Date(d + 'T00:00:00').getDay()]}, ${dmy(d)}</span><div class="d num">${x.count} đơn · lãi gộp ${money(x.revenue - x.cogs)}</div></span>
+        <b class="num">${money(x.revenue)}</b><span class="chev">›</span></button>`; }).join('')}</div>` : '<p class="muted small">Chưa có đơn nào trong tháng.</p>'}
       <div class="card"><h3>Món bán chạy</h3>
         ${top.length ? top.map(t => `<div class="line"><span>${esc(t.name)} <span class="muted small">× ${t.qty}</span></span><b class="num">${money(t.revenue)}</b></div>`).join('') : '<p class="muted small">Chưa có đơn nào trong tháng.</p>'}</div>
       <div class="card"><h3>Thông tin thêm</h3>
@@ -50,7 +57,7 @@ Views.them = () => {
   };
 };
 
-/* Xuất báo cáo tháng ra file Excel: 6 sheet, các dòng cộng dùng công thức */
+/* Xuất báo cáo tháng ra file Excel: 7 sheet, các dòng cộng dùng công thức */
 Actions['bc-xlsx'] = () => {
   const m = S.month, r = Calc.monthReport(m);
   const H = a => a.map(v => ({ v, s: 1 })), M = v => ({ v: Math.round(v || 0), s: 2 });
@@ -61,6 +68,9 @@ Actions['bc-xlsx'] = () => {
     ['Lương', M(r.salary)], ['Chi phí', M(r.expenses)], ['Hủy và lệch kho', M(r.waste)], [{ v: 'Lãi ròng', s: 1 }, { f: 'B5-B6-B7-B8', s: 3 }],
     [], ['Số đơn', r.count], ['Khuyến mãi đã giảm cho khách', M(r.discount)], ['Tiền nhập hàng trong tháng', M(r.purchases)],
   ];
+  const ngay = [H(['Ngày', 'Thứ', 'Số đơn', 'Doanh thu', 'Giá vốn', 'Lãi gộp'])];
+  Object.keys(r.days).sort().forEach(d => { const x = r.days[d], n = ngay.length + 1; ngay.push([dmy(d), THU[new Date(d + 'T00:00:00').getDay()], x.count, M(x.revenue), M(x.cogs), { f: `D${n}-E${n}`, s: 2 }]); });
+  if (ngay.length > 1) { const l = ngay.length; ngay.push([{ v: 'Tổng', s: 1 }, '', ...'CDEF'.split('').map(c => ({ f: `SUM(${c}2:${c}${l})`, s: 3 }))]); }
   const don = [H(['Ngày', 'Giờ', 'Món', 'Size / bán kèm', 'SL', 'Đơn giá', 'Thành tiền', 'Giảm giá đơn', 'Thanh toán'])];
   Store.all('orders').filter(o => !o.cancelled && o.date.startsWith(m)).sort((a, b) => a.time - b.time).forEach(o => o.items.forEach((it, i) => {
     const n = don.length + 1;
@@ -85,6 +95,7 @@ Actions['bc-xlsx'] = () => {
   if (kho.length > 1) kho.push([{ v: 'Tổng', s: 1 }, '', '', '', '', { f: `SUM(F2:F${kho.length})`, s: 3 }]);
   const blob = Xlsx.build([
     { name: 'Tổng hợp', rows: tong, widths: [34, 18] },
+    { name: 'Theo ngày', rows: ngay, widths: [12, 10, 8, 14, 14, 14] },
     { name: 'Đơn hàng', rows: don, widths: [12, 8, 34, 24, 6, 12, 14, 14, 14] },
     { name: 'Món bán', rows: mon, widths: [38, 14, 16] },
     { name: 'Chi phí', rows: chi, widths: [12, 20, 14, 30, 12] },

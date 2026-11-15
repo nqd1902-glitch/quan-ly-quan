@@ -84,10 +84,12 @@ const Calc = {
 
   monthReport(m) {
     const orders = Store.all('orders').filter(o => !o.cancelled && o.date.startsWith(m));
-    const r = { revenue: 0, cogs: 0, discount: 0, count: orders.length, byDay: {}, byProd: {}, byPay: {} };
+    const r = { revenue: 0, cogs: 0, discount: 0, count: orders.length, days: {}, byDay: {}, byProd: {}, byPay: {} };
     orders.forEach(o => {
       r.revenue += o.total; r.cogs += o.cost; r.discount += o.discount || 0;
       r.byDay[o.date] = (r.byDay[o.date] || 0) + o.total;
+      const dd = r.days[o.date] || (r.days[o.date] = { count: 0, revenue: 0, cogs: 0 });
+      dd.count++; dd.revenue += o.total; dd.cogs += o.cost;
       r.byPay[o.pay] = (r.byPay[o.pay] || 0) + o.total;
       o.items.forEach(it => {
         const k = it.name;

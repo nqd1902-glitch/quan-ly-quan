@@ -19,15 +19,6 @@ Views.caidat = () => {
           ${v ? `<button class="btn sm ghost" data-act="cd-img-del" data-k="${k}">Bỏ</button>` : ''}</div>`; }).join('')}
         <label>Khẩu hiệu trên ảnh bìa<input data-in="cd-text" data-k="slogan" value="${esc(Store.setting('slogan', ''))}" placeholder="Ví dụ: Chạm vị tươi mát" maxlength="60"></label>
       </div>
-      <div class="card"><h3>Chuyển khoản QR</h3>
-        <label style="margin-top:0">Ngân hàng<select data-in="cd-text" data-k="qrBin"><option value="">Chưa chọn</option>${BANKS.map(b => `<option value="${b[0]}" ${Store.setting('qrBin', '') === b[0] ? 'selected' : ''}>${b[1]}</option>`).join('')}</select></label>
-        <div class="row2"><label>Số tài khoản<input data-in="cd-text" data-k="qrAcc" inputmode="numeric" value="${esc(Store.setting('qrAcc', ''))}" maxlength="24"></label>
-          <label>Tên chủ tài khoản<input data-in="cd-text" data-k="qrName" value="${esc(Store.setting('qrName', ''))}" maxlength="50"></label></div>
-        <label>Nội dung chuyển khoản<input data-in="cd-text" data-k="qrNote" value="${esc(Store.setting('qrNote', 'Thanh toan don hang'))}" maxlength="25"></label>
-        <label class="check"><input type="checkbox" data-in="cd-check" data-k="billQR" ${Store.setting('billQR', true) ? 'checked' : ''}> In mã QR trên bill</label>
-        <button class="btn soft" data-act="cd-qr-test">Xem thử mã QR</button>
-        <p class="muted small">Khi chọn Chuyển khoản lúc thanh toán, app hiện mã QR đúng số tiền để khách quét. App không tự biết khách đã chuyển, quán xem tin báo của ngân hàng.</p>
-      </div>
       <div class="card"><h3>In bill</h3>
         <label style="margin-top:0">Địa chỉ in trên bill<input data-in="cd-text" data-k="billAddr" value="${esc(Store.setting('billAddr', ''))}" maxlength="80"></label>
         <div class="row2"><label>Số điện thoại<input data-in="cd-text" data-k="billPhone" inputmode="tel" value="${esc(Store.setting('billPhone', ''))}" maxlength="20"></label>
@@ -60,12 +51,6 @@ Actions['cd-img-del'] = el => { Store.setSetting(el.dataset.k, ''); applyTheme()
 Inputs['cd-text'] = el => Store.setSetting(el.dataset.k, el.value.trim());
 Actions['cd-billw'] = el => { Store.setSetting('billW', el.dataset.v); render(); };
 Inputs['cd-check'] = el => Store.setSetting(el.dataset.k, el.checked);
-Actions['cd-qr-test'] = () => {
-  if (!QRPay.ready()) return UI.toast('Chọn ngân hàng và nhập số tài khoản trước');
-  UI.sheet(`<h2>Mã QR thử · 10.000đ</h2>${QRPay.box(10000, 220)}
-    <div class="note">Mở app ngân hàng, quét mã này và kiểm tra ĐÚNG TÊN người nhận trước khi dùng cho khách. Không cần bấm chuyển tiền.</div>
-    <button class="btn" data-act="sheet-close">Đóng</button>`);
-};
 Inputs['cd-billask'] = el => Store.setSetting('billAsk', el.checked);
 Inputs['cd-name'] = el => { if (el.value.trim()) Store.setSetting('shopName', el.value.trim()); };
 Actions['cd-theme'] = el => { Store.setSetting('theme', el.dataset.v); applyTheme(); render(); };
@@ -89,7 +74,7 @@ Inputs['cd-restore'] = el => {
 Actions['cd-seed'] = () => UI.confirm('Nạp thực đơn và kho mẫu? Dữ liệu mẫu được thêm vào, không xóa dữ liệu đang có.', 'Nạp mẫu', () => { Seed.load(); render(); UI.toast('Đã nạp dữ liệu mẫu'); });
 Actions['cd-wipe'] = () => UI.confirm('Xóa toàn bộ món, kho, đơn hàng, lương, chi phí? Không khôi phục được nếu chưa sao lưu.', 'Xóa hết', async () => {
   // giữ lại tên quán, hình ảnh, cài đặt in bill; chỉ xóa số liệu
-  const keep = ['shopName', 'theme', 'accent', 'logo', 'cover', 'bgImg', 'slogan', 'billAddr', 'billPhone', 'billFoot', 'billW', 'billAsk', 'qrBin', 'qrAcc', 'qrName', 'qrNote', 'billQR', 'lastBackup'].map(k => [k, Store.setting(k)]);
+  const keep = ['shopName', 'theme', 'accent', 'logo', 'cover', 'bgImg', 'slogan', 'billAddr', 'billPhone', 'billFoot', 'billW', 'billAsk', 'lastBackup'].map(k => [k, Store.setting(k)]);
   await Store.clearData(); keep.forEach(([k, v]) => { if (v !== undefined) Store.setSetting(k, v); });
   S.cart = []; go('#/ban'); UI.toast('Đã xóa toàn bộ dữ liệu');
 });
