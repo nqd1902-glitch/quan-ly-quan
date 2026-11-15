@@ -7,7 +7,9 @@ const Mon = {
   cats() { return [...new Set(Store.all('products').map(p => p.category).filter(Boolean))]; },
   /* Cập nhật các dòng tính toán mà không vẽ lại ô đang gõ */
   refresh() {
-    const p = Mon.cur(); if (!p || !$('#mon-cost')) return;
+    const p = Mon.cur(); if (!p) return;
+    if (p.direct) { p.variants.forEach(v => { const el = $('#dv-' + v.id); if (el) el.innerHTML = `lãi ${money(v.price - (+v.cost || 0))} ${v.price ? `<span class="badge ${Calc.pctClass(Calc.costPct(v))}">${Math.round(Calc.costPct(v))}%</span>` : ''}`; }); return; }
+    if (!$('#mon-cost')) return;
     const cell = f => '<td></td>' + p.variants.map(f).join('') + '<td></td>';
     const set = (id, label, f) => { $('#' + id).innerHTML = `<td>${label}</td>` + p.variants.map(v => `<td class="num">${f(v)}</td>`).join('') + '<td></td>'; };
     set('mon-cost', 'Giá cost', v => money(Calc.variantCost(v)));
@@ -19,6 +21,19 @@ const Mon = {
     void cell;
   },
   save(p) { Store.put('products', p); },
+  /* Khối giá và tồn kho cho hàng bán thẳng (mua về bán lại, không pha chế) */
+  directCard(p) {
+    return `<div class="card"><h3>Giá và tồn kho</h3>
+      <div class="muted small">Hàng mua về bán lại, không pha chế. Nhập giá vốn để app tính lãi; tồn kho tự trừ khi bán.</div>
+      ${p.variants.map(v => `<div class="dv">
+        <div class="row3"><label>Quy cách<input data-in="mon-vname" data-v="${v.id}" value="${esc(v.name)}" placeholder="Lon, chai…"></label>
+          <label>Giá bán<input class="money" inputmode="numeric" data-in="mon-price" data-v="${v.id}" value="${moneyVal(v.price)}" placeholder="0"></label>
+          <label>Giá vốn<input class="money" inputmode="numeric" data-in="mon-dcost" data-v="${v.id}" value="${moneyVal(v.cost)}" placeholder="0"></label></div>
+        <div class="row" style="margin-top:10px"><span class="grow small">Tồn <b class="num">${qty(v.stock)}</b> ${(+v.stock || 0) <= 0 ? '<span class="badge bad">Hết hàng</span>' : ''}<br><span id="dv-${v.id}" class="muted"></span></span>
+          <button class="btn sm soft" data-act="mon-din" data-v="${v.id}">Nhập hàng</button><button class="btn sm soft" data-act="mon-dadj" data-v="${v.id}">Kiểm kê</button></div></div>`).join('')}
+      <div class="btns"><button class="btn ghost" data-act="mon-addv">＋ Thêm quy cách</button>${p.variants.length > 1 ? '<button class="btn ghost" data-act="mon-delv">Bớt quy cách</button>' : ''}</div></div>`;
+  },
+  dv(el) { const p = Mon.cur(); return { p, v: p.variants.find(x => x.id === (el ? el.dataset.v : S.dvId)) }; },
 };
 
 Views.mon = id => {
@@ -37,7 +52,7 @@ Views.mon = id => {
     html: `<div class="list"><a class="item" href="#/topping"><span class="grow"><span class="t">Món bán kèm (topping)</span><div class="d">${Store.all('toppings').length} món · trân châu, thêm sữa, thêm đá…</div></span><span class="chev">›</span></a></div>` + (prods.length ? cats.map(c => `<div class="sub">${esc(c)}</div><div class="list">${prods.filter(p => (p.category || 'Khác') === c).map(p => `
       <a class="item" href="#/mon/${p.id}">${thumb(p)}
         <span class="grow"><span class="t">${esc(p.name || '(chưa đặt tên)')} ${p.active === false ? '<span class="badge gray">Ngừng bán</span>' : ''}</span>
-        ${p.variants.map(v => `<div class="d num">${esc(v.name)} · ${money(v.price)} · cost ${money(Calc.variantCost(v))} ${v.price ? `<span class="badge ${Calc.pctClass(Calc.costPct(v))}">${Math.round(Calc.costPct(v))}%</span>` : ''}</div>`).join('')}
+        ${p.variants.map(v => `<div class="d num">${esc(v.name)} · ${money(v.price)} · cost ${money(Calc.variantCost(v))} ${v.price ? `<span class="badge ${Calc.pctClass(Calc.costPct(v))}">${Math.round(Calc.costPct(v))}%</span>` : ''}${v.direct ? ` · tồn ${qty(v.stock)}` : ''}</div>`).join('')}
         </span><span class="chev">›</span></a>`).join('')}</div>`).join('')
       : emptyBox('', 'Chưa có món nào.<br>Bấm nút ＋ để thêm món và nhập công thức.'))
       + `<a class="fab" href="#/mon/new" aria-label="Thêm món">＋</a>`,
@@ -66,8 +81,11 @@ function monEdit(id) {
         <label>Nhóm<input data-in="mon-f" data-f="category" list="catlist" value="${esc(p.category || '')}" placeholder="Nước ép, Trà…"></label>
         <datalist id="catlist">${Mon.cats().map(c => `<option value="${esc(c)}">`).join('')}</datalist>
         <label class="check"><input type="checkbox" data-in="mon-f" data-f="active" ${p.active !== false ? 'checked' : ''}> Đang bán</label>
+        <label>Loại</label>
+        <div class="seg"><button class="${p.direct ? '' : 'on'}" data-act="mon-kind" data-v="recipe">Pha chế theo công thức</button><button class="${p.direct ? 'on' : ''}" data-act="mon-kind" data-v="direct">Hàng bán thẳng</button></div>
       </div>
-      <div class="card"><h3>Công thức & định lượng</h3>
+      ${p.direct ? Mon.directCard(p) : ''}
+      <div class="card" ${p.direct ? 'hidden' : ''}><h3>Công thức & định lượng</h3>
         <div class="muted small">Mỗi cột là một size. Nhập lượng nguyên liệu cho từng size, app tự tính giá cost.</div>
         <div class="mx-wrap"><table class="mx">
           <thead><tr><th class="muted small">Nguyên liệu</th>${p.variants.map(v => `<th><input data-in="mon-vname" data-v="${v.id}" value="${esc(v.name)}" placeholder="Size"></th>`).join('')}<th></th></tr></thead>
@@ -140,6 +158,7 @@ Actions['mon-delrow'] = el => {
 };
 Actions['mon-addv'] = () => {
   const p = Mon.cur(); const last = p.variants[p.variants.length - 1];
+  if (p.direct) { p.variants.push({ id: Store.uid(), name: 'Loại mới', price: last.price, recipe: [], direct: true, cost: last.cost || 0, stock: 0 }); Mon.save(p); render(); return; }
   p.variants.push({ id: Store.uid(), name: p.variants.length === 1 ? 'Ly 1 lít' : 'Size mới', price: last.price, recipe: last.recipe.map(r => ({ ...r })) });
   Mon.save(p); render(); UI.toast('Đã thêm size, định lượng chép từ size trước');
 };
@@ -151,3 +170,44 @@ Actions['mon-delv-ok'] = el => { const p = Mon.cur(); p.variants = p.variants.fi
 Actions['mon-del'] = () => UI.confirm('Xóa món này cùng công thức? Đơn đã bán vẫn giữ nguyên.', 'Xóa món', () => {
   Store.remove('products', S.monId); S.cart = S.cart.filter(c => c.pid !== S.monId); go('#/mon'); UI.toast('Đã xóa món');
 });
+
+/* Hàng bán thẳng: đổi loại, giá vốn, nhập hàng, kiểm kê */
+Actions['mon-kind'] = el => {
+  const p = Mon.cur(); p.direct = el.dataset.v === 'direct';
+  p.variants.forEach(v => { v.direct = p.direct; if (p.direct) { v.cost = +v.cost || 0; v.stock = +v.stock || 0; } });
+  Mon.save(p); render();
+};
+Inputs['mon-dcost'] = el => { const { p, v } = Mon.dv(el); v.cost = parseMoney(el.value); Mon.save(p); Mon.refresh(); };
+Actions['mon-din'] = el => {
+  const { p, v } = Mon.dv(el); S.dvId = v.id;
+  UI.sheet(`<h2>Nhập hàng · ${esc(p.name)} ${esc(v.name)}</h2>
+    <div class="row2"><label>Số lượng<input name="q" type="number" inputmode="decimal" step="any" placeholder="0"></label>
+    <label>Thành tiền (đ)<input name="total" class="money" inputmode="numeric" placeholder="0"></label></div>
+    <div class="muted small" style="margin-top:4px">Giá vốn hiện tại: ${money(v.cost)}. Bỏ trống thành tiền thì tính theo giá này.</div>
+    <div class="row2"><label>Ngày<input name="date" type="date" value="${ymd()}"></label><label>Trả bằng${fundSelect()}</label></div>
+    <button class="btn" data-act="mon-din-ok">Nhập kho</button>`);
+};
+Actions['mon-din-ok'] = () => {
+  const { p, v } = Mon.dv(null), f = UI.form();
+  if (!(f.q > 0)) return UI.toast('Nhập số lượng lớn hơn 0');
+  const total = f.total || f.q * (+v.cost || 0), have = Math.max(+v.stock || 0, 0);
+  v.cost = Math.round((have * (+v.cost || 0) + total) / (have + f.q));
+  v.stock = (+v.stock || 0) + f.q;
+  Mon.save(p);
+  Store.put('moves', { pid: p.id, vid: v.id, type: 'in', qty: f.q, value: Math.round(total), note: p.name + ' ' + v.name, date: f.date || ymd(), time: Date.now(), fund: f.fund });
+  UI.closeSheet(); render(); UI.toast('Đã nhập kho');
+};
+Actions['mon-dadj'] = el => {
+  const { p, v } = Mon.dv(el); S.dvId = v.id;
+  UI.sheet(`<h2>Kiểm kê · ${esc(p.name)} ${esc(v.name)}</h2><p class="muted">Sổ sách đang ghi: <b>${qty(v.stock)}</b></p>
+    <label>Tồn thực tế đếm được<input name="real" type="number" inputmode="decimal" step="any" value="${Math.max(+v.stock || 0, 0)}"></label>
+    <button class="btn" data-act="mon-dadj-ok">Cập nhật tồn kho</button>`);
+};
+Actions['mon-dadj-ok'] = () => {
+  const { p, v } = Mon.dv(null), f = UI.form();
+  if (f.real < 0) return UI.toast('Tồn thực tế không được âm');
+  const diff = f.real - (+v.stock || 0);
+  v.stock = f.real; Mon.save(p);
+  if (diff) Store.put('moves', { pid: p.id, vid: v.id, type: 'adjust', qty: diff, value: Math.round(diff * (+v.cost || 0)), note: 'Chênh lệch kiểm kê ' + p.name, date: ymd(), time: Date.now() });
+  UI.closeSheet(); render(); UI.toast('Đã cập nhật tồn kho');
+};

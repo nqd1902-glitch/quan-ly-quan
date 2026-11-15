@@ -33,7 +33,7 @@ const emptyBox = (_, text) => `<div class="empty">${icon('inbox')}<div>${text}</
 /* Ảnh món: ảnh thật nếu có, không thì ô chữ cái đầu tên món */
 const thumb = (p, cls = 'th') => p.img ? `<img class="${cls}" src="${esc(p.img)}" alt="" loading="lazy">` : `<span class="${cls} mono">${esc((p.name || '?').trim().charAt(0).toUpperCase())}</span>`;
 
-const S = { q: '', cart: [], cat: 'Tất cả', month: ym(), day: ymd(), khoFilter: 'Tất cả', pay: 'cash', promoId: 'auto', manualDisc: 0, back: null, lastRoute: '' };
+const S = { q: '', custId: '', tabId: null, cart: [], cat: 'Tất cả', month: ym(), day: ymd(), khoFilter: 'Tất cả', pay: 'cash', promoId: 'auto', manualDisc: 0, back: null, lastRoute: '' };
 const Views = {};
 const Actions = {};   // data-act="ten"  -> Actions.ten(el, event) khi bấm
 const Inputs = {};    // data-in="ten"   -> Inputs.ten(el, event) khi gõ

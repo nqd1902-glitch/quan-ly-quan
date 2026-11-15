@@ -2,13 +2,13 @@
 /* Lớp lưu trữ duy nhất của app. Mọi màn hình đọc/ghi qua đây.
    Mỗi bản ghi có id, updatedAt, deleted -> bản online sau này chỉ cần nghe Store.onChange để đồng bộ. */
 const Store = (() => {
-  const COLLS = ['ingredients', 'products', 'orders', 'moves', 'staff', 'attendance', 'payadj', 'expenses', 'promos', 'toppings', 'settings'];
+  const COLLS = ['ingredients', 'products', 'orders', 'moves', 'staff', 'attendance', 'payadj', 'expenses', 'promos', 'toppings', 'customers', 'debtpay', 'tabs', 'settings'];
   const ALL = [...COLLS, 'sys']; // 'sys' (mã máy, bản quyền) không nằm trong file sao lưu
   const mem = {};
   let idb = null;
 
   const open = () => new Promise((res, rej) => {
-    const r = indexedDB.open('quanlyquan', 2);
+    const r = indexedDB.open('quanlyquan', 3);
     r.onupgradeneeded = () => ALL.forEach(c => { if (!r.result.objectStoreNames.contains(c)) r.result.createObjectStore(c, { keyPath: 'id' }); });
     r.onsuccess = () => res(r.result);
     r.onerror = () => rej(r.error);

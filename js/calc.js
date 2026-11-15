@@ -1,29 +1,38 @@
 'use strict';
-/* Các phép tính: giá cost, trừ kho, khuyến mãi, lương, báo cáo.
+/* Các phép tính: giá cost, trừ kho, khuyến mãi, lương, công nợ, sổ quỹ, báo cáo.
    Quy ước nguyên liệu:
      price  = giá mua cho 1 đơn vị mua (vd 50.000đ/kg)
      factor = 1 đơn vị mua bằng bao nhiêu đơn vị dùng (kg -> g: 1000)
      yield  = % dùng được sau sơ chế (gọt vỏ, bỏ hạt). 100 = không hao hụt
      stock  = tồn kho, tính theo đơn vị dùng, là hàng thô chưa sơ chế
-   Định lượng trong công thức là lượng thành phẩm (đã sơ chế). */
+   Định lượng trong công thức là lượng thành phẩm (đã sơ chế).
+   Hàng bán thẳng (variant.direct): không có công thức, giá vốn = variant.cost, tồn = variant.stock. */
 const Calc = {
   yieldOf(ing) { const y = +ing.yield || 100; return Math.min(Math.max(y, 1), 100) / 100; },
   unitCost(ing) { return (+ing.price || 0) / (+ing.factor || 1) / Calc.yieldOf(ing); }, // đ / 1 đơn vị dùng thành phẩm
   rawQty(ing, qty) { return qty / Calc.yieldOf(ing); },
   lineCost(r) { const ing = Store.get('ingredients', r.ingId); return ing ? Calc.unitCost(ing) * (+r.qty || 0) : 0; },
-  variantCost(v) { return (v.recipe || []).reduce((s, r) => s + Calc.lineCost(r), 0); },
+  variantCost(v) { return v.direct ? (+v.cost || 0) : (v.recipe || []).reduce((s, r) => s + Calc.lineCost(r), 0); },
   toppingCost(t) { const ing = t.ingId && Store.get('ingredients', t.ingId); return ing ? Calc.unitCost(ing) * (+t.qty || 0) : 0; },
   costPct(v) { return v.price > 0 ? Calc.variantCost(v) / v.price * 100 : 0; },
   pctClass(p) { return p > 50 ? 'bad' : p > 35 ? 'warn' : 'ok'; },
 
   stockValue(ing) { return Math.max(+ing.stock || 0, 0) / (+ing.factor || 1) * (+ing.price || 0); },
   isLow(ing) { const s = +ing.stock || 0; return s <= 0 || (ing.minStock > 0 && s <= ing.minStock); },
+  /* Danh sách hàng bán thẳng: [{p, v}] */
+  directItems() { const out = []; Store.all('products').forEach(p => { if (p.direct && p.name) p.variants.forEach(v => out.push({ p, v })); }); return out; },
+  directValue() { return Calc.directItems().reduce((s, x) => s + Math.max(+x.v.stock || 0, 0) * (+x.v.cost || 0), 0); },
 
-  /* sign = -1 khi bán, +1 khi hủy đơn */
+  /* sign = -1 khi bán, +1 khi hủy đơn. Trả về tên các mặt hàng bị âm kho */
   applyOrderStock(order, sign) {
-    const delta = {};
-    order.items.forEach(it => (it.recipe || []).forEach(r => { delta[r.ingId] = (delta[r.ingId] || 0) + r.raw * it.qty; }));
-    const negative = [];
+    const delta = {}, negative = [];
+    order.items.forEach(it => {
+      (it.recipe || []).forEach(r => { delta[r.ingId] = (delta[r.ingId] || 0) + r.raw * it.qty; });
+      if (it.direct) {
+        const p = Store.get('products', it.pid), v = p && p.variants.find(x => x.id === it.vid);
+        if (v) { v.stock = +((+v.stock || 0) + sign * it.qty).toFixed(4); if (v.stock < 0) negative.push(p.name); Store.put('products', p); }
+      }
+    });
     Object.keys(delta).forEach(id => {
       const ing = Store.get('ingredients', id);
       if (!ing) return;
@@ -34,7 +43,7 @@ const Calc = {
     return negative;
   },
 
-  /* Khuyến mãi. lines = [{p, v, qty}] */
+  /* Khuyến mãi. lines = [{p, v, qty, price}] */
   promoValid(pr, subtotal, day) {
     if (pr.active === false) return false;
     if (pr.from && day < pr.from) return false;
@@ -43,11 +52,12 @@ const Calc = {
     return true;
   },
   promoDiscount(pr, lines, day) {
-    const subtotal = lines.reduce((s, l) => s + (l.price ?? l.v.price) * l.qty, 0);
+    const amt = l => (l.price ?? l.v.price) * l.qty;
+    const subtotal = lines.reduce((s, l) => s + amt(l), 0);
     if (!Calc.promoValid(pr, subtotal, day)) return 0;
     let base = subtotal;
-    if (pr.scope === 'category') base = lines.filter(l => (l.p.category || 'Khác') === pr.target).reduce((s, l) => s + (l.price ?? l.v.price) * l.qty, 0);
-    if (pr.scope === 'product') base = lines.filter(l => l.p.id === pr.target).reduce((s, l) => s + (l.price ?? l.v.price) * l.qty, 0);
+    if (pr.scope === 'category') base = lines.filter(l => (l.p.category || 'Khác') === pr.target).reduce((s, l) => s + amt(l), 0);
+    if (pr.scope === 'product') base = lines.filter(l => l.p.id === pr.target).reduce((s, l) => s + amt(l), 0);
     if (base <= 0) return 0;
     const d = pr.type === 'percent' ? base * (+pr.value || 0) / 100 : Math.min(+pr.value || 0, base);
     return Math.round(Math.min(d, base));
@@ -65,21 +75,68 @@ const Calc = {
     const sum = t => adj.filter(a => a.type === t).reduce((s, a) => s + (+a.amount || 0), 0);
     const rate = +st.rate || 0;
     const base = st.type === 'month' ? Math.max(0, rate - units * rate / 26) : units * rate;
-    const bonus = sum('bonus'), fine = sum('fine'), advance = sum('advance');
+    const bonus = sum('bonus'), fine = sum('fine'), advance = sum('advance'), paid = sum('paid');
     const gross = Math.round(base + bonus - fine);
-    return { st, units, base: Math.round(base), bonus, fine, advance, gross, remain: gross - advance };
+    return { st, units, base: Math.round(base), bonus, fine, advance, paid, gross, remain: gross - advance - paid };
   },
   payroll(m) {
     return Store.all('staff').map(st => Calc.payrollOf(st, m))
-      .filter(p => p.st.active !== false || p.units || p.bonus || p.fine || p.advance);
+      .filter(p => p.st.active !== false || p.units || p.bonus || p.fine || p.advance || p.paid);
   },
 
+  /* Khoản chi của tháng (gồm khoản cố định hằng tháng) và khoản thu khác của tháng */
   expensesOf(m) {
     return Store.all('expenses').filter(e => {
+      if (e.kind === 'thu') return false;
       const em = e.date.slice(0, 7);
       if (e.recurring) return em <= m && (!e.endMonth || e.endMonth >= m);
       return em === m;
     });
+  },
+  incomesOf(m) { return Store.all('expenses').filter(e => e.kind === 'thu' && e.date.startsWith(m)); },
+
+  /* Khách còn nợ = tổng đơn ghi nợ chưa hủy − tổng đã trả */
+  custBalance(id) {
+    const debt = Store.all('orders').filter(o => o.custId === id && o.pay === 'debt' && !o.cancelled).reduce((s, o) => s + o.total, 0);
+    return debt - Store.all('debtpay').filter(d => d.custId === id).reduce((s, d) => s + (+d.amount || 0), 0);
+  },
+  totalDebt() { return Store.all('customers').reduce((s, c) => s + Math.max(Calc.custBalance(c.id), 0), 0); },
+
+  /* Tồn quỹ hiện tại (cộng dồn mọi khoản tiền vào, ra từ trước tới nay) */
+  fund() {
+    const f = { cash: 0, bank: 0 };
+    const add = (k, v) => { f[k === 'bank' ? 'bank' : 'cash'] += v; };
+    const tm = new Date(), nowM = tm.getFullYear() * 12 + tm.getMonth();
+    Store.all('orders').forEach(o => { if (!o.cancelled && o.pay !== 'debt') add(o.pay, o.total); });
+    Store.all('debtpay').forEach(d => add(d.fund, +d.amount || 0));
+    Store.all('expenses').forEach(e => {
+      const sign = e.kind === 'thu' ? 1 : -1;
+      if (!e.recurring) return add(e.fund, sign * (+e.amount || 0));
+      // khoản cố định: mỗi tháng tính đã chi 1 lần, từ tháng bắt đầu tới tháng này (hoặc tháng dừng)
+      const idx = s => +s.slice(0, 4) * 12 + (+s.slice(5, 7) - 1);
+      const end = e.endMonth ? Math.min(idx(e.endMonth), nowM) : nowM;
+      add(e.fund, sign * Math.max(0, end - idx(e.date) + 1) * (+e.amount || 0));
+    });
+    Store.all('moves').forEach(x => { if (x.type === 'in') add(x.fund, -(x.value || 0)); });
+    Store.all('payadj').forEach(a => { if (a.type === 'advance' || a.type === 'paid') add(a.fund, -(+a.amount || 0)); });
+    return f;
+  },
+  /* Tiền vào, ra trong tháng */
+  cashflow(m) {
+    const orders = Store.all('orders').filter(o => !o.cancelled && o.date.startsWith(m));
+    const sum = (a, f) => a.reduce((s, x) => s + (+f(x) || 0), 0);
+    const c = {
+      saleCash: sum(orders.filter(o => o.pay === 'cash'), o => o.total),
+      saleBank: sum(orders.filter(o => o.pay === 'bank'), o => o.total),
+      debtIn: sum(Store.all('debtpay').filter(d => d.date.startsWith(m)), d => d.amount),
+      otherIn: sum(Calc.incomesOf(m), e => e.amount),
+      expOut: sum(Calc.expensesOf(m), e => e.amount),
+      buyOut: sum(Store.all('moves').filter(x => x.type === 'in' && x.date.startsWith(m)), x => x.value),
+      payOut: sum(Store.all('payadj').filter(a => (a.type === 'advance' || a.type === 'paid') && a.date.startsWith(m)), a => a.amount),
+    };
+    c.in = c.saleCash + c.saleBank + c.debtIn + c.otherIn;
+    c.out = c.expOut + c.buyOut + c.payOut;
+    return c;
   },
 
   monthReport(m) {
@@ -101,9 +158,11 @@ const Calc = {
     r.purchases = moves.filter(x => x.type === 'in').reduce((s, x) => s + (x.value || 0), 0);
     r.waste = -moves.filter(x => x.type === 'waste' || x.type === 'adjust').reduce((s, x) => s + (x.value || 0), 0);
     r.salary = Calc.payroll(m).reduce((s, p) => s + p.gross, 0);
-    r.expenses = Calc.expensesOf(m).reduce((s, e) => s + (+e.amount || 0), 0);
+    // khoản "noPL" (chênh lệch kiểm quỹ) chỉ ảnh hưởng sổ quỹ, không tính vào lãi lỗ
+    r.expenses = Calc.expensesOf(m).filter(e => !e.noPL).reduce((s, e) => s + (+e.amount || 0), 0);
+    r.otherIncome = Calc.incomesOf(m).filter(e => !e.noPL).reduce((s, e) => s + (+e.amount || 0), 0);
     r.gross = r.revenue - r.cogs;
-    r.net = r.gross - r.salary - r.expenses - r.waste;
+    r.net = r.gross + r.otherIncome - r.salary - r.expenses - r.waste;
     return r;
   },
 };

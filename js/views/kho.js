@@ -1,6 +1,10 @@
 'use strict';
 /* Kho: nguyên liệu, nhập hàng, xuất hủy, kiểm kê */
 const Kho = {
+  directHtml() {
+    const d = Calc.directItems(); if (!d.length || S.khoFilter !== 'Tất cả') return '';
+    return `<div class="sub">Hàng bán thẳng</div><div class="list">${d.map(({ p, v }) => `<a class="item" href="#/mon/${p.id}">${thumb(p)}<span class="grow"><span class="t">${esc(p.name)}</span><div class="d num">${esc(v.name)} · giá vốn ${money(v.cost)}</div></span><span class="right"><b class="num">${qty(v.stock)}</b><br>${(+v.stock || 0) <= 0 ? '<span class="badge bad">Hết hàng</span>' : ''}</span><span class="chev">›</span></a>`).join('')}</div>`;
+  },
   stockText(ing) { return `${qty((+ing.stock || 0) / (+ing.factor || 1))} ${esc(ing.buyUnit)}`; },
   form(ing) {
     const n = !ing; ing = ing || { name: '', group: '', buyUnit: 'kg', useUnit: 'g', factor: 1000, price: 0, yield: 100, minStock: 0 };
@@ -28,8 +32,8 @@ const Kho = {
       </div>
       <button class="btn" data-act="kho-save" data-id="${ing.id || ''}">Lưu</button>`);
   },
-  move(ing, type, qtyUse, value, note, date) {
-    Store.put('moves', { ingId: ing.id, type, qty: qtyUse, value: Math.round(value), note: note || '', date: date || ymd(), time: Date.now() });
+  move(ing, type, qtyUse, value, note, date, fund) {
+    Store.put('moves', { ingId: ing.id, type, qty: qtyUse, value: Math.round(value), note: note || '', date: date || ymd(), time: Date.now(), fund: fund || 'cash' });
   },
 };
 const MOVE = { in: 'Nhập hàng', waste: 'Xuất hủy', adjust: 'Kiểm kê' };
@@ -45,7 +49,7 @@ Views.kho = id => {
   return {
     title: 'Kho',
     html: `<div class="stats">
-        <div class="stat"><div class="lb">Giá trị tồn kho</div><div class="v num">${money(ings.reduce((s, i) => s + Calc.stockValue(i), 0))}</div></div>
+        <div class="stat"><div class="lb">Giá trị tồn kho</div><div class="v num">${money(ings.reduce((s, i) => s + Calc.stockValue(i), 0) + Calc.directValue())}</div></div>
         <div class="stat"><div class="lb">Sắp hết / hết</div><div class="v num">${low.length} <span class="muted small">/ ${ings.length} loại</span></div></div></div>
       <div class="chips" style="margin-top:8px">${filters.map(c => `<button class="chip ${c === S.khoFilter ? 'on' : ''}" data-act="kho-filter" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>
       ${list.length ? `<div class="list">${list.map(i => `<a class="item" href="#/kho/${i.id}">
@@ -53,6 +57,7 @@ Views.kho = id => {
         <span class="right"><b class="num">${Kho.stockText(i)}</b><br>${Calc.isLow(i) ? `<span class="badge ${i.stock <= 0 ? 'bad' : 'warn'}">${i.stock <= 0 ? 'Hết hàng' : 'Sắp hết'}</span>` : ''}</span>
         <span class="chev">›</span></a>`).join('')}</div>`
         : emptyBox('', ings.length ? 'Không có nguyên liệu nào trong mục này.' : 'Kho đang trống.<br>Bấm nút ＋ để thêm nguyên liệu và giá mua.')}
+      ${Kho.directHtml()}
       <button class="fab" data-act="kho-new" aria-label="Thêm nguyên liệu">＋</button>`,
   };
 };
@@ -108,6 +113,7 @@ Actions['kho-in'] = () => {
     <label>Thành tiền (đ)<input name="total" class="money" inputmode="numeric" placeholder="0"></label></div>
     <div class="muted small" style="margin-top:4px">Giá gần nhất: ${money(ing.price)}/${esc(ing.buyUnit)}. Bỏ trống thành tiền thì tính theo giá này.</div>
     <div class="row2"><label>Ngày<input name="date" type="date" value="${ymd()}"></label><label>Ghi chú<input name="note" placeholder="Nơi mua…"></label></div>
+    <label>Trả bằng${fundSelect()}</label>
     <button class="btn" data-act="kho-in-ok">Nhập kho</button>`);
 };
 Actions['kho-in-ok'] = () => {
@@ -118,7 +124,7 @@ Actions['kho-in-ok'] = () => {
   ing.price = Math.round((have * ing.price + total) / (have + f.q));
   ing.stock = (+ing.stock || 0) + f.q * ing.factor;
   Store.put('ingredients', ing);
-  Kho.move(ing, 'in', f.q * ing.factor, total, f.note, f.date);
+  Kho.move(ing, 'in', f.q * ing.factor, total, f.note, f.date, f.fund);
   UI.closeSheet(); render(); UI.toast('Đã nhập kho');
 };
 Actions['kho-waste'] = () => {

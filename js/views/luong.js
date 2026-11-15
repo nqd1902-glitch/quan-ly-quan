@@ -2,7 +2,7 @@
 /* Lương: nhân viên, chấm công, thưởng / phạt / tạm ứng, bảng lương tháng */
 const STYPE = { hour: 'Theo giờ', shift: 'Theo ca', month: 'Lương tháng' };
 const SUNIT = { hour: 'giờ', shift: 'ca', month: 'ngày nghỉ' };
-const ADJ = { bonus: 'Thưởng', fine: 'Phạt', advance: 'Tạm ứng' };
+const ADJ = { bonus: 'Thưởng', fine: 'Phạt', advance: 'Tạm ứng', paid: 'Trả lương' };
 const Luong = {
   staffForm(st) {
     const n = !st; st = st || { name: '', type: 'hour', rate: 0, active: true };
@@ -31,12 +31,12 @@ Views.luong = id => {
     title: 'Lương', back: '#/them', tab: 'them',
     html: `${monthNav(m)}
       <div class="hero"><div class="lb">Tổng lương ${monthLabel(m).toLowerCase()}</div><div class="v num">${money(rows.reduce((s, p) => s + p.gross, 0))}</div>
-        <div class="ft"><span>Đã ứng ${money(rows.reduce((s, p) => s + p.advance, 0))}</span><span>Còn phải trả ${money(rows.reduce((s, p) => s + p.remain, 0))}</span></div></div>
-      ${has ? `<div class="btns"><button class="btn" data-act="luong-att">Chấm công</button><button class="btn soft" data-act="luong-adj">Thưởng / Phạt / Ứng</button></div>` : ''}
+        <div class="ft"><span>Đã ứng, đã trả ${money(rows.reduce((s, p) => s + p.advance + p.paid, 0))}</span><span>Còn phải trả ${money(rows.reduce((s, p) => s + p.remain, 0))}</span></div></div>
+      ${has ? `<div class="btns"><button class="btn" data-act="luong-att">Chấm công</button><button class="btn soft" data-act="luong-adj">Thưởng, ứng, trả lương</button></div>` : ''}
       ${rows.length ? rows.map(p => `<a class="card" style="display:block" href="#/luong/${p.st.id}">
         <div class="row"><b class="grow">${esc(p.st.name)} <span class="badge gray">${STYPE[p.st.type]}</span></b><b class="num">${money(p.gross)}</b></div>
         <div class="muted small num">${qty(p.units)} ${SUNIT[p.st.type]} · lương ${money(p.base)}${p.bonus ? ' · thưởng ' + money(p.bonus) : ''}${p.fine ? ' · phạt ' + money(p.fine) : ''}</div>
-        ${p.advance ? `<div class="small num">Đã ứng ${money(p.advance)} · <b>còn lĩnh ${money(p.remain)}</b></div>` : ''}</a>`).join('')
+        ${p.advance || p.paid ? `<div class="small num">Đã ứng, đã trả ${money(p.advance + p.paid)} · <b>còn lĩnh ${money(p.remain)}</b></div>` : ''}</a>`).join('')
         : emptyBox('', 'Chưa có nhân viên.<br>Bấm nút ＋ để thêm.')}
       <button class="fab" data-act="luong-staff-new" aria-label="Thêm nhân viên">＋</button>`,
   };
@@ -59,6 +59,7 @@ function luongDetail(id) {
         <div class="line"><span class="muted">Thưởng</span><b class="num">${money(p.bonus)}</b></div>
         <div class="line"><span class="muted">Phạt</span><b class="num">−${money(p.fine)}</b></div>
         <div class="line"><span class="muted">Đã tạm ứng</span><b class="num">−${money(p.advance)}</b></div>
+        <div class="line"><span class="muted">Đã trả lương</span><b class="num">−${money(p.paid)}</b></div>
         <div class="line total"><span>Còn lĩnh</span><span class="num">${money(p.remain)}</span></div>
         <button class="btn soft" data-act="luong-staff-edit">Sửa nhân viên</button>
       </div>
@@ -93,11 +94,12 @@ Actions['luong-att-save'] = () => {
 Actions['luong-att-del'] = el => { Store.remove('attendance', el.dataset.id); render(); };
 Actions['luong-adj'] = () => {
   const staff = Store.all('staff').filter(s => s.active !== false);
-  UI.sheet(`<h2>Thưởng / Phạt / Tạm ứng</h2>
+  UI.sheet(`<h2>Thưởng / Phạt / Ứng / Trả lương</h2>
     <label>Nhân viên<select name="staffId">${staff.map(s => `<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></label>
     <div class="row2"><label>Loại<select name="type">${Object.keys(ADJ).map(k => `<option value="${k}">${ADJ[k]}</option>`).join('')}</select></label>
     <label>Số tiền (đ)<input name="amount" class="money" inputmode="numeric" placeholder="0"></label></div>
     <div class="row2"><label>Ngày<input name="date" type="date" value="${ymd()}"></label><label>Ghi chú<input name="note"></label></div>
+    <label>Lấy tiền từ (khi tạm ứng, trả lương)${fundSelect()}</label>
     <button class="btn" data-act="luong-adj-save">Lưu</button>`);
 };
 Actions['luong-adj-save'] = () => {
