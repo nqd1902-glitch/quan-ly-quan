@@ -48,7 +48,7 @@ Views.baocao = () => {
 
 Views.them = () => {
   const lock = h => !License.can() && GATED.includes(h.slice(2)) ? '<span class="badge warn">Nâng cấp</span>' : '';
-  const item = (href, emo, t, d) => `<a class="item" href="${href}"><span class="ico">${icon(emo)}</span><span class="grow"><span class="t">${t}</span><div class="d">${d}</div></span>${lock(href)}<span class="chev">›</span></a>`;
+  const item = (href, emo, t, d) => !Perm.route(href.slice(2)) ? '' : `<a class="item" href="${href}"><span class="ico">${icon(emo)}</span><span class="grow"><span class="t">${t}</span><div class="d">${d}</div></span>${lock(href)}<span class="chev">›</span></a>`;
   return {
     title: 'Thêm',
     html: `<div class="list">

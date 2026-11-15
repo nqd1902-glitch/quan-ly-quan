@@ -196,6 +196,7 @@ const Sync = (() => {
     async removeMember(uid) { await api('/rest/v1/rpc/remove_member', { method: 'POST', body: { shop: st.shop.id, target: uid } }); await loadShop(); },
     async newCode() { await api('/rest/v1/rpc/new_join_code', { method: 'POST', body: { shop: st.shop.id } }); await loadShop(); },
     pending() { return dirty.size; },
+    myName() { const m = st.session && st.members.find(x => x.user_id === st.session.user.id); return m ? m.name : ''; },
     /* Đăng xuất. clear = xóa dữ liệu của cửa hàng khỏi máy này (dữ liệu vẫn còn trên mạng) */
     async signOut(clear) {
       st.session = null; st.shop = null; st.role = ''; st.members = []; st.state = 'off';
@@ -204,3 +205,17 @@ const Sync = (() => {
     },
   };
 })();
+
+/* Phân quyền theo vai trò (chỉ áp dụng khi đang dùng bản online; bản offline một người dùng thì được làm hết).
+   Chủ có mọi quyền. Lưu ý: việc ẩn này làm ở phía app, máy chủ chỉ chặn giữa các cửa hàng với nhau. */
+const Perm = {
+  MAP: {
+    manager: ['sell', 'cancel', 'discount', 'debt', 'menu', 'stock', 'report', 'cash', 'promo'],
+    cashier: ['sell', 'cancel', 'discount', 'debt'],
+    staff: ['sell'],
+  },
+  // màn hình -> quyền cần có. Màn hình không có trong bảng thì ai cũng vào được.
+  ROUTE: { mon: 'menu', topping: 'menu', kho: 'stock', baocao: 'report', thuchi: 'cash', chiphi: 'cash', km: 'promo', khach: 'debt', luong: 'owner', caidat: 'owner' },
+  can(k) { if (!Sync.active()) return true; const r = Sync.state.role; return r === 'owner' || (Perm.MAP[r] || []).includes(k); },
+  route(name) { const k = Perm.ROUTE[name]; return !k || Perm.can(k); },
+};

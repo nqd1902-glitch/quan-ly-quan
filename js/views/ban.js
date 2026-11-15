@@ -38,7 +38,7 @@ const Cart = {
     else if (pro && S.promoId !== 'none') promo = Store.get('promos', S.promoId);
     const promoDisc = promo ? Calc.promoDiscount(promo, lines, today) : 0;
     if (!promoDisc) promo = null;
-    const discount = Math.min(subtotal, promoDisc + (pro ? S.manualDisc || 0 : 0));
+    const discount = Math.min(subtotal, promoDisc + (pro && Perm.can('discount') ? S.manualDisc || 0 : 0));
     return { lines, subtotal, promo, promoDisc, discount, total: subtotal - discount };
   },
   bar() {
@@ -63,7 +63,7 @@ const Cart = {
         <b class="num" style="min-width:22px;text-align:center">${l.qty}</b>
         <button class="qtybtn" data-act="cart-qty" data-k="${esc(l.key)}" data-d="1">＋</button>
       </div>`).join('')}
-      <label ${License.can() ? '' : 'hidden'}>Khách hàng
+      <label ${License.can() && Perm.can('debt') ? '' : 'hidden'}>Khách hàng
         <select data-in="cart-cust"><option value="">Khách lẻ</option>${custs.map(c => `<option value="${c.id}" ${S.custId === c.id ? 'selected' : ''}>${esc(c.name)}${c.phone ? ' · ' + esc(c.phone) : ''}</option>`).join('')}<option value="__new">＋ Thêm khách mới…</option></select></label>
       <label ${License.can() ? '' : 'hidden'}>Khuyến mãi
         <select data-in="cart-promo">
@@ -71,9 +71,9 @@ const Cart = {
           <option value="none" ${S.promoId === 'none' ? 'selected' : ''}>Không áp dụng</option>
           ${promos.map(pr => `<option value="${pr.id}" ${S.promoId === pr.id ? 'selected' : ''}>${esc(pr.name)} (−${money(Calc.promoDiscount(pr, s.lines, today))})</option>`).join('')}
         </select></label>
-      <label ${License.can() ? '' : 'hidden'}>Giảm thêm (đ)<input class="money" inputmode="numeric" data-in="cart-disc" value="${moneyVal(S.manualDisc)}" placeholder="0"></label>
+      <label ${License.can() && Perm.can('discount') ? '' : 'hidden'}>Giảm thêm (đ)<input class="money" inputmode="numeric" data-in="cart-disc" value="${moneyVal(S.manualDisc)}" placeholder="0"></label>
       <label>Thanh toán</label>
-      <div class="seg">${Object.keys(PAY).filter(k => k !== 'debt' || License.can()).map(k => `<button class="${S.pay === k ? 'on' : ''}" data-act="cart-pay" data-v="${k}">${PAY[k]}</button>`).join('')}</div>
+      <div class="seg">${Object.keys(PAY).filter(k => k !== 'debt' || (License.can() && Perm.can('debt'))).map(k => `<button class="${S.pay === k ? 'on' : ''}" data-act="cart-pay" data-v="${k}">${PAY[k]}</button>`).join('')}</div>
       <div id="cart-sum">${Cart.sumHtml(s)}</div>
       <button class="btn" data-act="cart-checkout">Chốt đơn</button>
       <div class="btns">${APP.has('tabs') && License.can() ? '<button class="btn soft" data-act="cart-hold">Lưu tạm</button>' : ''}<button class="btn ghost" data-act="cart-clear">Xóa đơn</button></div>`);
@@ -91,7 +91,7 @@ const Cart = {
     const cust = S.custId && Store.get('customers', S.custId);
     if (S.pay === 'debt' && !cust) return UI.toast('Chọn khách hàng trước khi ghi nợ');
     const order = {
-      date: ymd(), time: Date.now(), pay: S.pay, custId: cust ? cust.id : '', custName: cust ? cust.name : '',
+      date: ymd(), time: Date.now(), pay: S.pay, by: Sync.active() ? Sync.myName() : '', custId: cust ? cust.id : '', custName: cust ? cust.name : '',
       items: s.lines.map(l => {
         const rec = (l.v.recipe || []).filter(r => r.qty > 0 && Store.get('ingredients', r.ingId))
           .map(r => ({ ingId: r.ingId, raw: Calc.rawQty(Store.get('ingredients', r.ingId), r.qty) }));
@@ -192,18 +192,18 @@ Views.don = () => {
         <div class="stat"><div class="lb">Doanh thu</div><div class="v num">${money(ok.reduce((s, o) => s + o.total, 0))}</div></div>
         <div class="stat"><div class="lb">Số đơn</div><div class="v num">${ok.length}</div></div></div>
       ${orders.length ? orders.map(o => `<div class="card ${o.cancelled ? 'strike' : ''}">
-        <div class="row"><b class="grow">${hm(o.time)} · ${PAY[o.pay] || ''}${o.custName ? ' · ' + esc(o.custName) : ''}</b><b class="num">${money(o.total)}</b></div>
+        <div class="row"><b class="grow">${hm(o.time)} · ${PAY[o.pay] || ''}${o.custName ? ' · ' + esc(o.custName) : ''}${o.by ? ' · bán: ' + esc(o.by) : ''}</b><b class="num">${money(o.total)}</b></div>
         ${o.items.map(it => `<div class="line small"><span>${it.qty} × ${esc(it.name)} <span class="muted">${esc(it.vname)}</span></span><span class="num">${money(it.price * it.qty)}</span></div>`).join('')}
         ${o.discount ? `<div class="line small muted"><span>${esc(o.promoName || 'Giảm giá')}</span><span class="num">−${money(o.discount)}</span></div>` : ''}
-        ${o.cancelled ? '<span class="badge bad">Đã hủy</span>' : `<div class="row" style="margin-top:8px"><button class="btn sm soft" data-act="bill-print" data-id="${o.id}">In bill</button><button class="btn sm danger" data-act="don-cancel" data-id="${o.id}">Hủy đơn</button></div>`}
+        ${o.cancelled ? `<span class="badge bad">Đã hủy${o.cancelBy ? ' bởi ' + esc(o.cancelBy) : ''}</span>` : `<div class="row" style="margin-top:8px"><button class="btn sm soft" data-act="bill-print" data-id="${o.id}">In bill</button>${Perm.can('cancel') ? `<button class="btn sm danger" data-act="don-cancel" data-id="${o.id}">Hủy đơn</button>` : ''}</div>`}
       </div>`).join('') : emptyBox('', 'Chưa có đơn nào trong ngày này.')}`,
   };
 };
 Inputs['don-day'] = el => { if (el.value) { S.day = el.value; render(); } };
 Actions['don-cancel'] = el => UI.confirm('Hủy đơn này? Nguyên liệu sẽ được cộng lại vào kho.', 'Hủy đơn', () => {
   const o = Store.get('orders', el.dataset.id);
-  if (!o || o.cancelled) return;
-  o.cancelled = true; Calc.applyOrderStock(o, 1); Store.put('orders', o);
+  if (!o || o.cancelled || !Perm.can('cancel')) return;
+  o.cancelled = true; if (Sync.active()) o.cancelBy = Sync.myName(); Calc.applyOrderStock(o, 1); Store.put('orders', o);
   render(); UI.toast('Đã hủy đơn');
 });
 

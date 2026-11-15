@@ -86,7 +86,7 @@ function render() {
   const parts = (location.hash.replace(/^#\/?/, '') || 'ban').split('/');
   const name = Views[parts[0]] ? parts[0] : 'ban';
   // màn hình chỉ có ở bản nâng cấp: bản thường mở ra trang giới thiệu nâng cấp
-  const out = GATED.includes(name) && !License.can() ? Views.nangcap() : Views[name](...parts.slice(1));
+  const out = !Perm.route(name) ? Views.khongquyen() : GATED.includes(name) && !License.can() ? Views.nangcap() : Views[name](...parts.slice(1));
   if (!out) return;
   const same = S.lastRoute === location.hash, y = window.scrollY;
   S.lastRoute = location.hash;
@@ -96,7 +96,7 @@ function render() {
   S.back = out.back || null;
   $('#back').classList.toggle('hidden', !out.back);
   const tab = out.tab || name;
-  $$('#nav a').forEach(a => a.classList.toggle('on', a.dataset.tab === tab));
+  $$('#nav a').forEach(a => { a.classList.toggle('on', a.dataset.tab === tab); a.classList.toggle('hidden', !Perm.route(a.dataset.tab)); });
   window.scrollTo(0, same ? y : 0);
   Cart.bar();
 }

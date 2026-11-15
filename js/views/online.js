@@ -67,3 +67,8 @@ Actions['on-logout'] = el => {
   if (el.dataset.clear !== '1') return Online.run(el, () => Sync.signOut(false));
   UI.confirm(Sync.pending() ? `Còn ${Sync.pending()} thay đổi chưa đưa lên mạng, đăng xuất sẽ mất. Vẫn đăng xuất?` : 'Đăng xuất và xóa dữ liệu của cửa hàng khỏi máy này? Dữ liệu vẫn còn trên mạng, đăng nhập lại là có.', 'Đăng xuất', () => Online.run(el, () => Sync.signOut(true)));
 };
+
+Views.khongquyen = () => ({
+  title: 'Không có quyền', back: '#/ban', tab: 'them',
+  html: `<div class="empty">${icon('lock')}<div>Tài khoản của bạn (${ROLE[Sync.state.role] || ''}) không được xem mục này.<br>Cần thì nhờ chủ ${APP.word} đổi vai trò trong mục Bản online.</div></div>`,
+});
