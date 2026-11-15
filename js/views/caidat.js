@@ -9,6 +9,25 @@ Views.caidat = () => {
         <label>Giao diện</label>
         <div class="seg">${[['auto', 'Theo máy'], ['light', 'Sáng'], ['dark', 'Tối']].map(t => `<button class="${theme === t[0] ? 'on' : ''}" data-act="cd-theme" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>
       </div>
+      <div class="card"><h3>Hình ảnh của quán</h3>
+        <label style="margin-top:0">Màu chủ đạo</label>
+        <div class="swatches">${Object.keys(ACCENTS).map(k => `<button class="${Store.setting('accent', 'green') === k ? 'on' : ''}" style="background:${ACCENTS[k][0]}" data-act="cd-accent" data-v="${k}" aria-label="${k}"></button>`).join('')}</div>
+        ${[['logo', 'Logo quán', 'Hiện cạnh tên quán và trên bill', 320], ['cover', 'Ảnh bìa', 'Ảnh lớn đầu màn hình bán hàng', 1200], ['bgImg', 'Ảnh nền app', 'Phủ mờ phía sau toàn bộ app', 1200]].map(([k, t, d, max]) => { const v = Store.setting(k, ''); return `
+        <div class="row imgrow">${v ? `<img class="th" src="${v}" alt="">` : '<span class="th mono">+</span>'}
+          <span class="grow"><b>${t}</b><div class="muted small">${d}</div></span>
+          <label class="btn sm soft">${v ? 'Đổi' : 'Chọn ảnh'}<input type="file" accept="image/*" class="hidden" data-in="cd-img" data-k="${k}" data-max="${max}"></label>
+          ${v ? `<button class="btn sm ghost" data-act="cd-img-del" data-k="${k}">Bỏ</button>` : ''}</div>`; }).join('')}
+        <label>Khẩu hiệu trên ảnh bìa<input data-in="cd-text" data-k="slogan" value="${esc(Store.setting('slogan', ''))}" placeholder="Ví dụ: Chạm vị tươi mát" maxlength="60"></label>
+      </div>
+      <div class="card"><h3>In bill</h3>
+        <label style="margin-top:0">Địa chỉ in trên bill<input data-in="cd-text" data-k="billAddr" value="${esc(Store.setting('billAddr', ''))}" maxlength="80"></label>
+        <div class="row2"><label>Số điện thoại<input data-in="cd-text" data-k="billPhone" inputmode="tel" value="${esc(Store.setting('billPhone', ''))}" maxlength="20"></label>
+          <label>Dòng cuối bill<input data-in="cd-text" data-k="billFoot" value="${esc(Store.setting('billFoot', 'Cảm ơn quý khách!'))}" maxlength="60"></label></div>
+        <label>Khổ giấy máy in</label>
+        <div class="seg">${[['58', '58 mm'], ['80', '80 mm']].map(t => `<button class="${Store.setting('billW', '58') === t[0] ? 'on' : ''}" data-act="cd-billw" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>
+        <label class="check"><input type="checkbox" data-in="cd-billask" ${Store.setting('billAsk', true) ? 'checked' : ''}> Hiện nút In bill sau khi chốt đơn</label>
+        <p class="muted small">Bấm In bill, điện thoại sẽ mở hộp thoại in và in ra máy in đã cài trên máy. In lại bill cũ ở mục Đơn hàng.</p>
+      </div>
       <div class="card"><h3>Sao lưu dữ liệu</h3>
         <p class="muted small" style="margin-top:0">Dữ liệu chỉ nằm trong điện thoại này. Hãy sao lưu định kỳ và gửi file vào Zalo/Drive của bạn, phòng khi mất máy hoặc xóa trình duyệt.</p>
         ${Store.persistent ? '' : '<div class="note">Trình duyệt đang ở chế độ ẩn danh nên dữ liệu sẽ mất khi đóng. Hãy mở bằng tab thường.</div>'}
@@ -26,6 +45,12 @@ Views.caidat = () => {
   };
 };
 
+Actions['cd-accent'] = el => { Store.setSetting('accent', el.dataset.v); applyTheme(); render(); };
+Inputs['cd-img'] = el => pickImage(el.files && el.files[0], +el.dataset.max, data => { Store.setSetting(el.dataset.k, data); applyTheme(); render(); UI.toast('Đã lưu ảnh'); });
+Actions['cd-img-del'] = el => { Store.setSetting(el.dataset.k, ''); applyTheme(); render(); };
+Inputs['cd-text'] = el => Store.setSetting(el.dataset.k, el.value.trim());
+Actions['cd-billw'] = el => { Store.setSetting('billW', el.dataset.v); render(); };
+Inputs['cd-billask'] = el => Store.setSetting('billAsk', el.checked);
 Inputs['cd-name'] = el => { if (el.value.trim()) Store.setSetting('shopName', el.value.trim()); };
 Actions['cd-theme'] = el => { Store.setSetting('theme', el.dataset.v); applyTheme(); render(); };
 
@@ -55,8 +80,9 @@ Inputs['cd-restore'] = el => {
 };
 Actions['cd-seed'] = () => UI.confirm('Nạp thực đơn và kho mẫu? Dữ liệu mẫu được thêm vào, không xóa dữ liệu đang có.', 'Nạp mẫu', () => { Seed.load(); render(); UI.toast('Đã nạp dữ liệu mẫu'); });
 Actions['cd-wipe'] = () => UI.confirm('Xóa toàn bộ món, kho, đơn hàng, lương, chi phí? Không khôi phục được nếu chưa sao lưu.', 'Xóa hết', async () => {
-  const name = Store.setting('shopName', ''), theme = Store.setting('theme', 'auto');
-  await Store.clearData(); Store.setSetting('shopName', name); Store.setSetting('theme', theme);
+  // giữ lại tên quán, hình ảnh, cài đặt in bill; chỉ xóa số liệu
+  const keep = ['shopName', 'theme', 'accent', 'logo', 'cover', 'bgImg', 'slogan', 'billAddr', 'billPhone', 'billFoot', 'billW', 'billAsk'].map(k => [k, Store.setting(k)]);
+  await Store.clearData(); keep.forEach(([k, v]) => { if (v !== undefined) Store.setSetting(k, v); });
   S.cart = []; go('#/ban'); UI.toast('Đã xóa toàn bộ dữ liệu');
 });
 

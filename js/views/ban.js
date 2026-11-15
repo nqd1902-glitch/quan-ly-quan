@@ -90,7 +90,12 @@ const Cart = {
     Store.put('orders', order);
     S.cart = []; S.manualDisc = 0; S.promoId = 'auto';
     UI.closeSheet(); render();
-    UI.toast(neg.length ? `Đã chốt ${money(order.total)} · Kho âm: ${neg.slice(0, 3).join(', ')}` : `Đã chốt đơn ${money(order.total)}`);
+    if (Store.setting('billAsk', true)) {
+      UI.sheet(`<h2>Đã chốt đơn</h2>
+        <div class="line total"><span>Tổng thu</span><span class="num">${money(order.total)}</span></div>
+        ${neg.length ? `<div class="note">Kho đang âm: ${esc(neg.slice(0, 3).join(', '))}</div>` : ''}
+        <div class="btns"><button class="btn soft" data-act="bill-print" data-id="${order.id}">In bill</button><button class="btn" data-act="sheet-close">Đơn mới</button></div>`);
+    } else UI.toast(neg.length ? `Đã chốt ${money(order.total)} · Kho âm: ${neg.slice(0, 3).join(', ')}` : `Đã chốt đơn ${money(order.total)}`);
   },
 };
 
@@ -115,8 +120,11 @@ Views.ban = () => {
   if (!cats.includes(S.cat)) S.cat = 'Tất cả';
   return {
     title: Store.setting('shopName', 'Bán hàng'),
+    titleHtml: (Store.setting('logo', '') ? `<img class="logo-sm" src="${Store.setting('logo', '')}" alt="">` : '') + `<span>${esc(Store.setting('shopName', 'Bán hàng'))}</span>`,
     right: `<a class="hbtn" href="#/don">Đơn hôm nay</a>`,
-    html: `<div class="search">${icon('search')}<input type="search" placeholder="Tìm món" value="${esc(S.q)}" data-in="ban-q"></div>
+    html: `${!License.state.activated && License.state.daysLeft <= 3 ? `<a class="note" style="display:block;margin:0 0 10px" href="#/caidat">Còn ${License.state.daysLeft} ngày dùng thử · Bấm để kích hoạt bản quyền</a>` : ''}
+      ${Store.setting('cover', '') ? `<div class="cover"><img src="${Store.setting('cover', '')}" alt=""><div class="cv-t"><b>${esc(Store.setting('shopName', ''))}</b><span>${esc(Store.setting('slogan', ''))}</span></div></div>` : ''}
+      <div class="search">${icon('search')}<input type="search" placeholder="Tìm món" value="${esc(S.q)}" data-in="ban-q"></div>
       <div class="chips">${cats.map(c => `<button class="chip ${c === S.cat ? 'on' : ''}" data-act="ban-cat" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>
       <div id="ban-grid">${Ban.gridHtml()}</div>`,
   };
@@ -153,7 +161,7 @@ Views.don = () => {
         <div class="row"><b class="grow">${hm(o.time)} · ${PAY[o.pay] || ''}</b><b class="num">${money(o.total)}</b></div>
         ${o.items.map(it => `<div class="line small"><span>${it.qty} × ${esc(it.name)} <span class="muted">${esc(it.vname)}</span></span><span class="num">${money(it.price * it.qty)}</span></div>`).join('')}
         ${o.discount ? `<div class="line small muted"><span>${esc(o.promoName || 'Giảm giá')}</span><span class="num">−${money(o.discount)}</span></div>` : ''}
-        ${o.cancelled ? '<span class="badge bad">Đã hủy</span>' : `<button class="btn sm danger" data-act="don-cancel" data-id="${o.id}">Hủy đơn</button>`}
+        ${o.cancelled ? '<span class="badge bad">Đã hủy</span>' : `<div class="row" style="margin-top:8px"><button class="btn sm soft" data-act="bill-print" data-id="${o.id}">In bill</button><button class="btn sm danger" data-act="don-cancel" data-id="${o.id}">Hủy đơn</button></div>`}
       </div>`).join('') : emptyBox('', 'Chưa có đơn nào trong ngày này.')}`,
   };
 };
@@ -164,3 +172,33 @@ Actions['don-cancel'] = el => UI.confirm('Hủy đơn này? Nguyên liệu sẽ 
   o.cancelled = true; Calc.applyOrderStock(o, 1); Store.put('orders', o);
   render(); UI.toast('Đã hủy đơn');
 });
+
+/* Bill: dựng nội dung theo khổ giấy 58/80mm rồi gọi hộp thoại in của máy */
+const Bill = {
+  html(o) {
+    const no = Store.all('orders').filter(x => x.date === o.date && x.time <= o.time).length;
+    const d = new Date(o.time);
+    const row = (a, b, cls = '') => `<div class="b-row ${cls}"><span>${a}</span><span>${b}</span></div>`;
+    const addr = Store.setting('billAddr', ''), phone = Store.setting('billPhone', ''), foot = Store.setting('billFoot', 'Cảm ơn quý khách!');
+    return `<div class="bill w${Store.setting('billW', '58')}">
+      ${Store.setting('logo', '') ? `<img class="b-logo" src="${Store.setting('logo', '')}" alt="">` : ''}
+      <div class="b-c b-name">${esc(Store.setting('shopName', ''))}</div>
+      ${addr ? `<div class="b-c">${esc(addr)}</div>` : ''}${phone ? `<div class="b-c">ĐT: ${esc(phone)}</div>` : ''}
+      <div class="b-hr"></div>
+      ${row(`${dmy(o.date)} ${pad(d.getHours())}:${pad(d.getMinutes())}`, 'Số ' + pad(no))}
+      <div class="b-hr"></div>
+      ${o.items.map(it => `<div>${esc(it.name)}${it.vname ? ' (' + esc(it.vname) + ')' : ''}</div>${row(`${it.qty} x ${Math.round(it.price).toLocaleString('vi-VN')}`, Math.round(it.price * it.qty).toLocaleString('vi-VN'))}`).join('')}
+      <div class="b-hr"></div>
+      ${o.discount ? row('Tạm tính', Math.round(o.subtotal).toLocaleString('vi-VN')) + row(esc(o.promoName || 'Giảm giá'), '-' + Math.round(o.discount).toLocaleString('vi-VN')) : ''}
+      ${row('TỔNG CỘNG', money(o.total), 'b-total')}
+      ${row('Thanh toán', PAY[o.pay] || '')}
+      <div class="b-hr"></div>
+      ${foot ? `<div class="b-c">${esc(foot)}</div>` : ''}</div>`;
+  },
+  print(id) {
+    const o = Store.get('orders', id); if (!o) return;
+    $('#print').innerHTML = Bill.html(o);
+    setTimeout(() => window.print(), 50);
+  },
+};
+Actions['bill-print'] = el => Bill.print(el.dataset.id);

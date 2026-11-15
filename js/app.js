@@ -73,7 +73,7 @@ function render() {
   if (!out) return;
   const same = S.lastRoute === location.hash, y = window.scrollY;
   S.lastRoute = location.hash;
-  $('#title').textContent = out.title;
+  if (out.titleHtml) $('#title').innerHTML = out.titleHtml; else $('#title').textContent = out.title;
   $('#hdr-right').innerHTML = out.right || '';
   $('#view').innerHTML = out.html;
   S.back = out.back || null;
@@ -84,9 +84,32 @@ function render() {
   Cart.bar();
 }
 
+/* Màu chủ đạo quán tự chọn: [màu nền sáng, màu nền tối] */
+const ACCENTS = { green: ['#0a8f5b', '#3ddc97'], orange: ['#d9630b', '#ff9a4d'], pink: ['#d6336c', '#ff7aa8'], blue: ['#1d6fe0', '#6aa8ff'], purple: ['#7c3aed', '#b094ff'], red: ['#d92d20', '#ff6b61'] };
 function applyTheme() {
-  const t = Store.setting('theme', 'auto');
-  if (t === 'auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  const root = document.documentElement, t = Store.setting('theme', 'auto');
+  if (t === 'auto') delete root.dataset.theme; else root.dataset.theme = t;
+  const dark = t === 'dark' || (t === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+  const a = (ACCENTS[Store.setting('accent', 'green')] || ACCENTS.green)[dark ? 1 : 0];
+  root.style.setProperty('--acc', a);
+  root.style.setProperty('--acc-soft', `color-mix(in srgb, ${a} 14%, var(--card))`);
+  const bg = Store.setting('bgImg', '');
+  document.body.classList.toggle('hasbg', !!bg);
+  root.style.setProperty('--bgimg', bg ? `url("${bg}")` : 'none');
+}
+/* Đọc ảnh người dùng chọn, thu nhỏ về tối đa max px, trả về dạng lưu được trong máy */
+function pickImage(file, max, cb) {
+  if (!file) return;
+  const img = new Image(), url = URL.createObjectURL(file);
+  img.onload = () => {
+    const k = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    URL.revokeObjectURL(url);
+    cb(c.toDataURL(file.type === 'image/png' && max <= 320 ? 'image/png' : 'image/jpeg', 0.82));
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); UI.toast('Không đọc được ảnh này'); };
+  img.src = url;
 }
 
 document.addEventListener('click', e => {
@@ -108,6 +131,7 @@ const App = {
     Seed.applyImages();
     applyTheme();
     window.addEventListener('hashchange', render);
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
     if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
     App.enter();
   },
