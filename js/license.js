@@ -1,6 +1,7 @@
 'use strict';
 /* Bản quyền bản offline: dùng thử TRIAL_DAYS ngày, sau đó cần mã kích hoạt gắn với mã máy.
    Mã kích hoạt là chữ ký số ECDSA của mã máy; app chỉ giữ khóa công khai nên không tự tạo mã được. */
+const SELLER_ZALO = '0859 400 192'; // số Zalo người bán, hiện ở màn hình kích hoạt
 const License = (() => {
   const TRIAL_DAYS = 7, DAY = 86400000;
   const st = { deviceId: '', activated: false, daysLeft: TRIAL_DAYS, canVerify: true };
@@ -49,7 +50,8 @@ const License = (() => {
         <button class="btn soft" data-act="lic-copy">Sao chép mã máy</button>
         <label>Mã kích hoạt<textarea id="lic-key" rows="3" placeholder="Dán mã kích hoạt người bán gửi cho bạn"></textarea></label>
         ${st.canVerify ? '' : '<div class="note">Trình duyệt đang mở app qua địa chỉ không bảo mật nên chưa kiểm tra được mã. Hãy mở app bằng link https.</div>'}
-        <button class="btn" data-act="lic-activate">Kích hoạt</button>`;
+        <button class="btn" data-act="lic-activate">Kích hoạt</button>
+        <p class="muted small" style="text-align:center;margin-bottom:0">Mua bản quyền: gửi mã máy qua Zalo <b>${SELLER_ZALO}</b></p>`;
     },
     lockHtml() {
       return `<div class="in"><div class="logo">${icon('lock')}</div><h1>Hết thời gian dùng thử</h1>
