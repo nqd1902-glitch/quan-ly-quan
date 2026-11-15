@@ -16,7 +16,7 @@ const Sync = (() => {
   const LOCAL_SETTINGS = ['theme', 'lastBackup']; // cài đặt riêng từng máy, không đồng bộ
   const st = { session: null, shop: null, role: '', members: [], state: 'off', lastSync: 0, error: '' };
   const dirty = new Set();
-  let pushT = 0, pollT = 0, busy = false, again = false, started = false;
+  let pushT = 0, pollT = 0, busy = false, again = false, started = false, shopAt = Date.now();
 
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const active = () => !!(st.session && st.shop);
@@ -130,6 +130,8 @@ const Sync = (() => {
     if (busy) { again = true; return; }
     busy = true; st.state = 'sync';
     try {
+      // mỗi phút xem lại hạn dùng, vai trò, danh sách người dùng (chủ có thể vừa đổi)
+      if (Date.now() - shopAt > 60000) { shopAt = Date.now(); await loadShop(); if (!st.shop) { st.state = 'off'; busy = false; return; } }
       recompute();
       await push();
       const changed = await pull();
