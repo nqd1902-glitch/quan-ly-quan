@@ -15,7 +15,7 @@ const Sync = (() => {
   const COLLS = ['ingredients', 'products', 'orders', 'moves', 'staff', 'attendance', 'payadj', 'expenses', 'promos', 'toppings', 'customers', 'debtpay', 'tabs', 'settings'];
   const LOCAL_SETTINGS = ['theme', 'lastBackup']; // cài đặt riêng từng máy, không đồng bộ
   const st = { session: null, shop: null, role: '', members: [], state: 'off', lastSync: 0, error: '' };
-  const dirty = new Set();
+  const dirty = new Set(), fresh = []; // fresh: mã các đơn mới vừa nhận từ máy khác
   let pushT = 0, pollT = 0, busy = false, again = false, started = false, shopAt = Date.now();
 
   const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -116,6 +116,7 @@ const Sync = (() => {
       rows.forEach(r => {
         if (dirty.has(r.coll + ':' + r.id) || !COLLS.includes(r.coll) || (r.coll === 'settings' && LOCAL_SETTINGS.includes(r.id))) return;
         const o = r.data; o.id = r.id; if (r.deleted) o.deleted = true;
+        if (r.coll === 'orders' && !Store.raw('orders', r.id) && !o.deleted && !o.cancelled) fresh.push(o.id);
         Store.putQuiet(r.coll, o); changed = true;
       });
       Store.setSys('lastPull', rows[rows.length - 1].updated_at);
@@ -136,6 +137,7 @@ const Sync = (() => {
       await push();
       const changed = await pull();
       if (changed) { recompute(); applyTheme(); refreshView(); }
+      if (fresh.length) Station.onNew(fresh.splice(0));
       st.state = 'ok'; st.error = ''; st.lastSync = Date.now();
     } catch (e) { st.state = 'err'; st.error = e.message || String(e); }
     busy = false;

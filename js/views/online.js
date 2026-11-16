@@ -48,6 +48,11 @@ Views.online = () => {
     ${owner ? `<div class="card"><h3>Mã tham gia cho nhân viên</h3><div class="code">${esc(sh.join_code)}</div>
       <div class="muted small" style="margin-top:6px">Nhân viên mở app trên máy của họ, vào Thêm → Bản online, tạo tài khoản rồi nhập mã này.</div>
       <button class="btn ghost" data-act="on-newcode">Đổi mã khác</button></div>` : ''}
+    <div class="card"><h3>Trạm in ${Station.on() ? '<span class="badge ok">Đang bật</span>' : ''}</h3>
+      <div class="muted small">Bật trên máy tính đặt ở quầy có nối máy in bill. Mỗi khi máy khác chốt đơn, máy này tự in bill. Máy phải mở app suốt giờ bán.</div>
+      <label class="check"><input type="checkbox" data-in="st-toggle" ${Station.on() ? 'checked' : ''}> Máy này là trạm in</label>
+      ${Station.on() ? `<div class="small" style="margin-top:8px">Đã in ${Station.count()} bill hôm nay${Station.queue.length ? ' · đang chờ in ' + Station.queue.length : ''}</div>
+      <button class="btn soft" data-act="st-guide">Cách cài để in thẳng, không hiện hộp thoại</button>` : ''}</div>
     <div class="sub">Người dùng</div>
     <div class="list">${s.members.map(m => `<div class="item"><span class="grow"><span class="t">${esc(m.name || '(chưa đặt tên)')}${m.user_id === s.session.user.id ? ' <span class="badge gray">Bạn</span>' : ''}</span></span>
       ${owner && m.role !== 'owner' ? `<select style="width:auto;margin:0;padding:8px 30px 8px 10px;font-size:14px" data-in="on-role" data-u="${m.user_id}">${['manager', 'cashier', 'staff'].map(r => `<option value="${r}" ${m.role === r ? 'selected' : ''}>${ROLE[r]}</option>`).join('')}</select>
@@ -72,3 +77,49 @@ Views.khongquyen = () => ({
   title: 'Không có quyền', back: '#/ban', tab: 'them',
   html: `<div class="empty">${icon('lock')}<div>Tài khoản của bạn (${ROLE[Sync.state.role] || ''}) không được xem mục này.<br>Cần thì nhờ chủ ${APP.word} đổi vai trò trong mục Bản online.</div></div>`,
 });
+
+/* Trạm in: máy ở quầy tự in bill của đơn mới nhận từ máy khác (và đơn chốt ngay trên máy này) */
+const Station = {
+  queue: [], busy: false,
+  on() { return Sync.active() && !!Store.sys('station'); },
+  printed() { return Store.sys('printed') || []; },                       // [{id, t}] các bill đã in gần đây
+  count() { const d0 = new Date().setHours(0, 0, 0, 0); return Station.printed().filter(x => x.t >= d0).length; },
+  /* Đơn mới từ máy khác: bỏ qua đơn đã in và đơn cũ hơn 15 phút (tránh in lại cả lịch sử khi vừa đăng nhập) */
+  onNew(ids) {
+    if (!Station.on()) return;
+    Station.push(ids.filter(id => { const o = Store.get('orders', id); return o && Date.now() - o.time < 15 * 60000; }));
+  },
+  push(ids) {
+    const done = new Set(Station.printed().map(x => x.id));
+    ids.forEach(id => { if (!done.has(id) && !Station.queue.includes(id)) Station.queue.push(id); });
+    Station.next();
+  },
+  next() {
+    if (Station.busy || !Station.queue.length) return;
+    Station.busy = true;
+    const id = Station.queue.shift(), o = Store.get('orders', id);
+    if (!o || o.cancelled) { Station.busy = false; return Station.next(); }
+    $('#print').innerHTML = Bill.html(o);
+    setTimeout(() => {
+      try { window.print(); } catch (_) {}        // có hộp thoại thì lệnh này chờ tới khi đóng hộp thoại
+      Store.setSys('printed', [...Station.printed(), { id, t: Date.now() }].slice(-300));
+      Station.busy = false;
+      if (location.hash.startsWith('#/online') && $('#sheet-wrap').classList.contains('hidden')) render();
+      setTimeout(Station.next, 500);
+    }, 150);
+  },
+  /* Giữ màn hình luôn sáng khi làm trạm in (trình duyệt hỗ trợ thì mới có tác dụng) */
+  awake() { if (Station.on() && navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => {}); },
+};
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') Station.awake(); });
+Inputs['st-toggle'] = el => { Store.setSys('station', el.checked); Station.awake(); render(); UI.toast(el.checked ? 'Máy này đã là trạm in' : 'Đã tắt trạm in'); };
+Actions['st-guide'] = () => UI.sheet(`<h2>In thẳng, không hiện hộp thoại</h2>
+  <p class="muted small">Làm một lần trên máy tính Windows ở quầy. Nếu không làm, mỗi bill sẽ hiện hộp thoại in và phải bấm In.</p>
+  <div class="line" style="justify-content:flex-start;gap:10px"><b>1</b><span>Cài máy in bill vào Windows và đặt làm <b>máy in mặc định</b>.</span></div>
+  <div class="line" style="justify-content:flex-start;gap:10px"><b>2</b><span>Bấm chuột phải ngoài màn hình Windows → New → Shortcut, dán dòng dưới vào ô địa chỉ:</span></div>
+  <textarea rows="4" readonly style="font-size:12.5px" id="st-cmd">"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing --app=${location.origin}${location.pathname}</textarea>
+  <button class="btn soft" data-act="st-copy">Sao chép dòng lệnh</button>
+  <div class="line" style="justify-content:flex-start;gap:10px"><b>3</b><span><b>Đóng hết cửa sổ Chrome</b>, rồi mở app bằng lối tắt vừa tạo. Đăng nhập và bật Trạm in trong cửa sổ đó.</span></div>
+  <div class="line" style="justify-content:flex-start;gap:10px"><b>4</b><span>Chốt thử một đơn trên điện thoại để xem máy in chạy. Khổ giấy chỉnh ở Cài đặt → In bill.</span></div>
+  <button class="btn" data-act="sheet-close">Đóng</button>`);
+Actions['st-copy'] = async () => { const t = $('#st-cmd'); try { await navigator.clipboard.writeText(t.value); UI.toast('Đã sao chép'); } catch (_) { t.select(); UI.toast('Hãy nhấn Ctrl+C để sao chép'); } };

@@ -107,6 +107,7 @@ const Cart = {
     order.cost = order.items.reduce((a, it) => a + it.cost * it.qty, 0);
     const neg = Calc.applyOrderStock(order, -1);
     Store.put('orders', order);
+    if (Station.on()) Station.push([order.id]);
     S.cart = []; S.manualDisc = 0; S.promoId = 'auto'; S.custId = '';
     if (S.tabId) { Store.remove('tabs', S.tabId); S.tabId = null; }
     if (S.pay === 'debt') S.pay = 'cash';
