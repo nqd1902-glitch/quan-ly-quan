@@ -55,6 +55,7 @@ Views.them = () => {
     html: `<div class="list">
       ${item('#/online', 'cloud', 'Bản online', Sync.active() ? esc(Online.statusText()) : 'Nhiều máy dùng chung, xem từ xa, kết nối in bill')}
       ${item('#/don', 'receipt', 'Đơn hàng', 'Xem lại, hủy đơn theo ngày')}
+      ${item('#/mayin', 'printer', 'Máy in bill', Mayin.hint())}
       ${item('#/km', 'tag', 'Khuyến mãi', 'Giảm %, giảm tiền theo đơn, nhóm, món')}
       ${item('#/luong', 'users', 'Lương', 'Nhân viên, chấm công, thưởng, tạm ứng')}
       ${item('#/thuchi', 'wallet', 'Thu chi', 'Sổ quỹ, khoản thu, khoản chi')}

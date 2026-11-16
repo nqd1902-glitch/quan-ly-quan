@@ -18,6 +18,7 @@ const monthLabel = m => `Tháng ${+m.slice(5)}/${m.slice(0, 4)}`;
 const monthNav = m => `<div class="monthnav"><button data-act="month" data-v="-1">‹</button><b>${monthLabel(m)}</b><button data-act="month" data-v="1">›</button></div>`;
 const ICONS = {
   receipt: 'M6 3h12v18l-3-2-3 2-3-2-3 2V3zM9 8h6M9 12h6',
+  printer: 'M7 8V3h10v5M7 17H4V8h16v9h-3M7 14h10v7H7z',
   tag: 'M3 12V4h8l10 10-8 8L3 12zM7.5 8.5h.01',
   users: 'M16 20v-1.5a4 4 0 00-4-4H7a4 4 0 00-4 4V20M9.5 11a3.5 3.5 0 100-7 3.5 3.5 0 000 7zM21 20v-1.5a4 4 0 00-3-3.8M15.5 4.2a3.5 3.5 0 010 6.6',
   wallet: 'M3 7a2 2 0 012-2h13v4M3 7v10a2 2 0 002 2h15V9H5a2 2 0 01-2-2zM16.5 14h.01',
@@ -146,6 +147,7 @@ const App = {
     await Store.init();
     await License.init();
     await Sync.init();
+    BtPrint.restore(); // máy in Bluetooth đã chọn lần trước: thử nối lại ở nền
     Seed.applyImages();
     applyTheme();
     window.addEventListener('hashchange', render);

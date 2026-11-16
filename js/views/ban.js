@@ -116,7 +116,8 @@ const Cart = {
       UI.sheet(`<h2>Đã chốt đơn</h2>
         <div class="line total"><span>Tổng thu</span><span class="num">${money(order.total)}</span></div>
         ${neg.length ? `<div class="note">Kho đang âm: ${esc(neg.slice(0, 3).join(', '))}</div>` : ''}
-        <div class="btns"><button class="btn soft" data-act="bill-print" data-id="${order.id}">In bill</button><button class="btn" data-act="sheet-close">Đơn mới</button></div>`);
+        <div class="btns"><button class="btn soft" data-act="bill-print" data-id="${order.id}">In bill</button><button class="btn" data-act="sheet-close">Đơn mới</button></div>
+        ${Dev.ios ? '<p class="muted small" style="text-align:center;margin-bottom:0" data-act="mayin-open">iPhone chỉ in thẳng được máy in có AirPrint · <u>Xem cách in bill</u></p>' : ''}`);
     } else UI.toast(neg.length ? `Đã chốt ${money(order.total)} · Kho âm: ${neg.slice(0, 3).join(', ')}` : `Đã chốt đơn ${money(order.total)}`);
   },
 };
@@ -233,6 +234,8 @@ const Bill = {
   },
   print(id) {
     const o = Store.get('orders', id); if (!o) return;
+    // máy này đã chọn máy in Bluetooth thì in thẳng, không qua hộp thoại
+    if (BtPrint.on()) { UI.toast('Đang gửi bill ra máy in…'); return BtPrint.printOrder(o).then(() => UI.toast('Đã in bill'), e => UI.toast('Chưa in được: ' + e.message)); }
     $('#print').innerHTML = Bill.html(o);
     setTimeout(() => window.print(), 50);
   },

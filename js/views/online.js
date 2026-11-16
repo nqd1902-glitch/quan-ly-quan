@@ -22,7 +22,7 @@ Views.online = () => {
   // 1. chưa đăng nhập
   if (!s.session) return { ...base, html: `<div class="card"><h3>Dùng chung dữ liệu trên nhiều máy</h3>
       <div class="muted small">Mất mạng vẫn bán được, có mạng lại thì tự đồng bộ.</div>
-      ${['Chủ xem doanh thu, tồn kho từ xa', 'Nhân viên bán trên máy riêng, số liệu tự lưu lên mạng', '<b>Kết nối in bill:</b> điện thoại chốt đơn, máy in ở quầy tự in, dùng được cả iPhone và Android', 'Phân quyền cho từng vị trí nhân viên', 'Đủ tính năng của bản nâng cấp (PRO)'].map(t => `<div class="line" style="justify-content:flex-start;gap:10px"><span style="color:var(--acc);font-weight:700">✓</span><span>${t}</span></div>`).join('')}
+      ${['Chủ xem doanh thu, tồn kho từ xa', 'Nhân viên bán trên máy riêng, số liệu tự lưu lên mạng', '<b>Kết nối in bill:</b> điện thoại chốt đơn, máy in ở quầy tự in. Điện thoại Android in thẳng qua Bluetooth. Quán chỉ dùng iPhone thì cần thêm một máy tính Windows hoặc điện thoại Android nối máy in · <a href="#/mayin"><u>xem cách in theo từng loại máy</u></a>','Phân quyền cho từng vị trí nhân viên', 'Đủ tính năng của bản nâng cấp (PRO)'].map(t => `<div class="line" style="justify-content:flex-start;gap:10px"><span style="color:var(--acc);font-weight:700">✓</span><span>${t}</span></div>`).join('')}
       <label>Số điện thoại<input id="on-id" inputmode="tel" autocomplete="username" placeholder="Ví dụ: 0901234567"></label>
       <label>Mật khẩu (từ 6 ký tự)<input id="on-pass" type="password" autocomplete="current-password"></label>
       <button class="btn" data-act="on-login">Đăng nhập</button>
@@ -50,10 +50,14 @@ Views.online = () => {
       <div class="muted small" style="margin-top:6px">Nhân viên mở app trên máy của họ, vào Thêm → Bản online, tạo tài khoản rồi nhập mã này.</div>
       <button class="btn ghost" data-act="on-newcode">Đổi mã khác</button></div>` : ''}
     <div class="card"><h3>Trạm in ${Station.on() ? '<span class="badge ok">Đang bật</span>' : ''}</h3>
-      <div class="muted small">Bật trên máy tính đặt ở quầy có nối máy in bill. Mỗi khi máy khác chốt đơn, máy chủ báo ngay cho máy này để in bill. Máy phải mở app suốt giờ bán.</div>
+      <div class="muted small">Bật trên máy đặt ở quầy có nối máy in bill: máy tính Windows, hoặc điện thoại Android đã nối máy in Bluetooth. Máy khác chốt đơn thì máy này tự in bill. Máy phải mở app suốt giờ bán.</div>
+      ${Dev.ios ? '<div class="note" style="margin-top:8px">iPhone không làm trạm in được vì không nối thẳng được máy in bill. Hãy bật trạm in trên máy tính Windows hoặc điện thoại Android.</div>' : ''}
       <label class="check"><input type="checkbox" data-in="st-toggle" ${Station.on() ? 'checked' : ''}> Máy này là trạm in</label>
       ${Station.on() ? `<div class="small" style="margin-top:8px">${Sync.state.live ? 'Đang nối trực tiếp với máy chủ' : 'Đang nối lại, tạm thời hỏi máy chủ 2 giây một lần'} · Đã in ${Station.count()} bill hôm nay${Station.queue.length ? ' · đang chờ in ' + Station.queue.length : ''}</div>
-      <button class="btn soft" data-act="st-guide">Cách cài để in thẳng, không hiện hộp thoại</button>` : ''}</div>
+      ${BtPrint.on() ? `<div class="small" style="margin-top:6px">In qua Bluetooth: ${BtPrint.connected() ? 'đã nối ' + esc(BtPrint.saved().name) : '<b>chưa nối máy in</b>'}</div>${Station.err ? `<div class="note" style="margin-top:8px">${esc(Station.err)}</div>` : ''}`
+        : Dev.android ? '<div class="note" style="margin-top:8px">Điện thoại Android muốn tự in thì phải nối máy in Bluetooth trước.</div>' : ''}
+      ${Dev.android || BtPrint.on() ? '<a class="btn soft" href="#/mayin">Nối máy in Bluetooth</a>' : '<button class="btn soft" data-act="st-guide">Cách cài để in thẳng, không hiện hộp thoại</button>'}` : ''}
+      <a class="btn ghost" href="#/mayin">Cách in bill theo từng loại máy</a></div>
     <div class="sub">Người dùng</div>
     <div class="list">${s.members.map(m => `<div class="item"><span class="grow"><span class="t">${esc(m.name || '(chưa đặt tên)')}${m.user_id === s.session.user.id ? ' <span class="badge gray">Bạn</span>' : ''}</span></span>
       ${owner && m.role !== 'owner' ? `<select style="width:auto;margin:0;padding:8px 30px 8px 10px;font-size:14px" data-in="on-role" data-u="${m.user_id}">${['manager', 'cashier', 'staff'].map(r => `<option value="${r}" ${m.role === r ? 'selected' : ''}>${ROLE[r]}</option>`).join('')}</select>
@@ -92,7 +96,7 @@ Views.khongquyen = () => ({
 
 /* Trạm in: máy ở quầy tự in bill của đơn mới nhận từ máy khác (và đơn chốt ngay trên máy này) */
 const Station = {
-  queue: [], busy: false,
+  queue: [], busy: false, err: '',
   on() { return Sync.active() && !!Store.sys('station'); },
   printed() { return Store.sys('printed') || []; },                       // [{id, t}] các bill đã in gần đây
   count() { const d0 = new Date().setHours(0, 0, 0, 0); return Station.printed().filter(x => x.t >= d0).length; },
@@ -108,17 +112,20 @@ const Station = {
   },
   next() {
     if (Station.busy || !Station.queue.length) return;
+    const id = Station.queue[0], o = Store.get('orders', id);
+    if (!o || o.cancelled) { Station.queue.shift(); return Station.next(); }
     Station.busy = true;
-    const id = Station.queue.shift(), o = Store.get('orders', id);
-    if (!o || o.cancelled) { Station.busy = false; return Station.next(); }
-    $('#print').innerHTML = Bill.html(o);
-    setTimeout(() => {
-      try { window.print(); } catch (_) {}        // có hộp thoại thì lệnh này chờ tới khi đóng hộp thoại
+    const redraw = () => { if (location.hash.startsWith('#/online') && $('#sheet-wrap').classList.contains('hidden')) render(); };
+    const done = () => {
+      Station.queue.shift(); Station.err = '';
       Store.setSys('printed', [...Station.printed(), { id, t: Date.now() }].slice(-300));
-      Station.busy = false;
-      if (location.hash.startsWith('#/online') && $('#sheet-wrap').classList.contains('hidden')) render();
+      Station.busy = false; redraw();
       setTimeout(Station.next, 500);
-    }, 150);
+    };
+    // Trạm in bằng điện thoại Android: in thẳng qua Bluetooth. Chưa in được thì giữ bill trong hàng chờ, nối lại máy in là in tiếp.
+    if (BtPrint.on()) return void BtPrint.printOrder(o, true).then(done, e => { Station.busy = false; Station.err = e.message; redraw(); UI.toast('Trạm in chưa in được: ' + e.message); });
+    $('#print').innerHTML = Bill.html(o);
+    setTimeout(() => { try { window.print(); } catch (_) {} done(); }, 150); // có hộp thoại thì lệnh in chờ tới khi đóng hộp thoại
   },
   /* Giữ màn hình luôn sáng khi làm trạm in (trình duyệt hỗ trợ thì mới có tác dụng) */
   awake() { if (Station.on() && navigator.wakeLock) navigator.wakeLock.request('screen').catch(() => {}); },
