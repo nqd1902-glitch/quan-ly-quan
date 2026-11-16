@@ -128,9 +128,9 @@ Actions['st-guide'] = () => UI.sheet(`<h2>In thẳng, không hiện hộp thoạ
   <p class="muted small">Làm một lần trên máy tính Windows ở quầy. Nếu không làm, mỗi bill sẽ hiện hộp thoại in và phải bấm In.</p>
   <div class="line" style="justify-content:flex-start;gap:10px"><b>1</b><span>Cài máy in bill vào Windows và đặt làm <b>máy in mặc định</b>.</span></div>
   <div class="line" style="justify-content:flex-start;gap:10px"><b>2</b><span>Bấm chuột phải ngoài màn hình Windows → New → Shortcut, dán dòng dưới vào ô địa chỉ:</span></div>
-  <textarea rows="4" readonly style="font-size:12.5px" id="st-cmd">"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --kiosk-printing --app=${location.origin}${location.pathname}</textarea>
+  <textarea rows="4" readonly style="font-size:12.5px" id="st-cmd">"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --user-data-dir="C:\\TramIn" --kiosk-printing --no-first-run --app=${location.origin}${location.pathname}</textarea>
   <button class="btn soft" data-act="st-copy">Sao chép dòng lệnh</button>
-  <div class="line" style="justify-content:flex-start;gap:10px"><b>3</b><span><b>Đóng hết cửa sổ Chrome</b>, rồi mở app bằng lối tắt vừa tạo. Đăng nhập và bật Trạm in trong cửa sổ đó.</span></div>
+  <div class="line" style="justify-content:flex-start;gap:10px"><b>3</b><span>Mở app bằng lối tắt vừa tạo. Đây là một cửa sổ riêng nên phải <b>đăng nhập lại</b> và bật Trạm in trong cửa sổ đó. Mỗi ngày mở trạm in bằng đúng lối tắt này.</span></div>
   <div class="line" style="justify-content:flex-start;gap:10px"><b>4</b><span>Chốt thử một đơn trên điện thoại để xem máy in chạy. Khổ giấy chỉnh ở Cài đặt → In bill.</span></div>
   <button class="btn" data-act="sheet-close">Đóng</button>`);
 Actions['st-copy'] = async () => { const t = $('#st-cmd'); try { await navigator.clipboard.writeText(t.value); UI.toast('Đã sao chép'); } catch (_) { t.select(); UI.toast('Hãy nhấn Ctrl+C để sao chép'); } };
