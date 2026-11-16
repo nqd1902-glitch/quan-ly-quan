@@ -49,9 +49,9 @@ Views.online = () => {
       <div class="muted small" style="margin-top:6px">Nhân viên mở app trên máy của họ, vào Thêm → Bản online, tạo tài khoản rồi nhập mã này.</div>
       <button class="btn ghost" data-act="on-newcode">Đổi mã khác</button></div>` : ''}
     <div class="card"><h3>Trạm in ${Station.on() ? '<span class="badge ok">Đang bật</span>' : ''}</h3>
-      <div class="muted small">Bật trên máy tính đặt ở quầy có nối máy in bill. Mỗi khi máy khác chốt đơn, máy này tự in bill sau khoảng 3 giây. Máy phải mở app suốt giờ bán.</div>
+      <div class="muted small">Bật trên máy tính đặt ở quầy có nối máy in bill. Mỗi khi máy khác chốt đơn, máy chủ báo ngay cho máy này để in bill. Máy phải mở app suốt giờ bán.</div>
       <label class="check"><input type="checkbox" data-in="st-toggle" ${Station.on() ? 'checked' : ''}> Máy này là trạm in</label>
-      ${Station.on() ? `<div class="small" style="margin-top:8px">Đã in ${Station.count()} bill hôm nay${Station.queue.length ? ' · đang chờ in ' + Station.queue.length : ''}</div>
+      ${Station.on() ? `<div class="small" style="margin-top:8px">${Sync.state.live ? 'Đang nối trực tiếp với máy chủ' : 'Đang nối lại, tạm thời hỏi máy chủ 2 giây một lần'} · Đã in ${Station.count()} bill hôm nay${Station.queue.length ? ' · đang chờ in ' + Station.queue.length : ''}</div>
       <button class="btn soft" data-act="st-guide">Cách cài để in thẳng, không hiện hộp thoại</button>` : ''}</div>
     <div class="sub">Người dùng</div>
     <div class="list">${s.members.map(m => `<div class="item"><span class="grow"><span class="t">${esc(m.name || '(chưa đặt tên)')}${m.user_id === s.session.user.id ? ' <span class="badge gray">Bạn</span>' : ''}</span></span>

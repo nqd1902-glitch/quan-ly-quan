@@ -14,7 +14,7 @@ const ROLE = { owner: 'Chủ', manager: 'Quản lý', cashier: 'Thu ngân', staf
 const Sync = (() => {
   const COLLS = ['ingredients', 'products', 'orders', 'moves', 'staff', 'attendance', 'payadj', 'expenses', 'promos', 'toppings', 'customers', 'debtpay', 'tabs', 'settings'];
   const LOCAL_SETTINGS = ['theme', 'lastBackup']; // cài đặt riêng từng máy, không đồng bộ
-  const st = { session: null, shop: null, role: '', members: [], state: 'off', lastSync: 0, error: '' };
+  const st = { session: null, shop: null, role: '', members: [], state: 'off', lastSync: 0, error: '', live: false };
   const dirty = new Set(), fresh = []; // fresh: mã các đơn mới vừa nhận từ máy khác
   let pushT = 0, pollT = 0, busy = false, again = false, started = false, shopAt = Date.now();
 
@@ -101,6 +101,7 @@ const Sync = (() => {
         return { shop_id: st.shop.id, coll: c, id, data: o, deleted: !!o.deleted };
       }).filter(Boolean);
       if (rows.length) await api('/rest/v1/records?on_conflict=shop_id,coll,id', { method: 'POST', body: rows, headers: { Prefer: 'resolution=merge-duplicates,return=minimal' } });
+      if (rows.some(r => r.coll === 'orders')) notify();
       keys.forEach(k => { const i = k.indexOf(':'), o = Store.raw(k.slice(0, i), k.slice(i + 1)); if (!o || o.updatedAt === snap[k]) dirty.delete(k); }); // sửa tiếp trong lúc đẩy thì giữ lại để đẩy lần sau
       Store.setSys('dirty', [...dirty]);
     }
@@ -123,6 +124,33 @@ const Sync = (() => {
       if (!full) break;
     }
     return changed;
+  }
+
+  /* Kênh báo tin tức thời (Supabase Realtime). Máy bán vừa đẩy đơn lên thì báo "có đơn mới";
+     máy trạm in giữ sẵn một đường nối với máy chủ nên nhận tin ngay và đồng bộ, không phải hỏi liên tục. */
+  let ws = null, wsRef = 0, wsBeat = 0, wsRetry = 0;
+  const topic = () => 'shop-' + st.shop.id;
+  function listen() {
+    if (ws || !active() || !Station.on() || !navigator.onLine) return;
+    try { ws = new WebSocket(SUPA.url.replace(/^http/, 'ws') + '/realtime/v1/websocket?apikey=' + SUPA.key + '&vsn=1.0.0'); } catch (_) { ws = null; return; }
+    const sock = ws;
+    const send = (t, ev, payload) => { if (sock.readyState === 1) sock.send(JSON.stringify({ topic: t, event: ev, payload, ref: String(++wsRef) })); };
+    sock.onopen = () => {
+      send('realtime:' + topic(), 'phx_join', { config: { broadcast: { self: false }, presence: { key: '' }, postgres_changes: [] }, access_token: st.session.access_token });
+      clearInterval(wsBeat); wsBeat = setInterval(() => send('phoenix', 'heartbeat', {}), 25000);
+    };
+    sock.onmessage = e => {
+      let m; try { m = JSON.parse(e.data); } catch (_) { return; }
+      if (m.event === 'phx_reply' && m.topic === 'realtime:' + topic()) st.live = !!(m.payload && m.payload.status === 'ok');
+      if (m.event === 'broadcast') sync();
+    };
+    sock.onclose = sock.onerror = () => { if (ws !== sock) return; clearInterval(wsBeat); ws = null; st.live = false; clearTimeout(wsRetry); wsRetry = setTimeout(listen, 5000); };
+  }
+  function unlisten() { clearTimeout(wsRetry); clearInterval(wsBeat); st.live = false; if (ws) { const s0 = ws; ws = null; try { s0.close(); } catch (_) {} } }
+  function notify() {
+    if (!active()) return;
+    fetch(SUPA.url + '/realtime/v1/api/broadcast', { method: 'POST', headers: { apikey: SUPA.key, Authorization: 'Bearer ' + st.session.access_token, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: [{ topic: topic(), event: 'order', payload: {} }] }) }).catch(() => {});
   }
 
   /* Một lượt đồng bộ: đẩy lên rồi kéo về */
@@ -157,12 +185,14 @@ const Sync = (() => {
       mark(c, obj.id);
       clearTimeout(pushT); pushT = setTimeout(sync, 300); // đẩy lên gần như ngay để trạm in nhận sớm
     };
-    // Máy thường: 10 giây hỏi máy chủ một lần. Máy trạm in: 2 giây một lần để bill ra trong khoảng 3 giây.
+    // Mọi máy: 10 giây hỏi máy chủ một lần. Máy trạm in nhận tin tức thời qua đường nối riêng (xem listen).
     let lastPoll = 0;
     clearInterval(pollT); pollT = setInterval(() => {
       if (!navigator.onLine) return;
       const station = Station.on();
-      if (!station && (document.visibilityState !== 'visible' || Date.now() - lastPoll < 10000)) return;
+      if (station) listen(); else if (ws) unlisten();
+      const fast = station && !st.live; // đường nối tức thời rớt thì tạm hỏi 2 giây một lần
+      if (!fast && ((!station && document.visibilityState !== 'visible') || Date.now() - lastPoll < 10000)) return;
       lastPoll = Date.now(); sync();
     }, 2000);
     window.addEventListener('online', sync);
@@ -208,6 +238,7 @@ const Sync = (() => {
     myName() { const m = st.session && st.members.find(x => x.user_id === st.session.user.id); return m ? m.name : ''; },
     /* Đăng xuất. clear = xóa dữ liệu của cửa hàng khỏi máy này (dữ liệu vẫn còn trên mạng) */
     async signOut(clear) {
+      unlisten();
       st.session = null; st.shop = null; st.role = ''; st.members = []; st.state = 'off';
       Store.setSys('session', null); Store.setSys('shop', null); Store.setSys('lastPull', ''); dirty.clear(); Store.setSys('dirty', []);
       if (clear) { const name = Store.setting('shopName', ''); await Store.clearData(); if (name) Store.setSetting('shopName', name); }
