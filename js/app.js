@@ -150,7 +150,24 @@ const App = {
     applyTheme();
     window.addEventListener('hashchange', render);
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
-    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register(APP.base + 'sw.js').catch(() => {});
+    if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+      // Có bản app mới: trình duyệt tải xong ở nền thì tự nạp lại trang một lần để dùng ngay bản mới.
+      // Không nạp lại khi đang mở bảng nhập liệu, đang có món trong đơn, hoặc lần cài đầu tiên.
+      const had = !!navigator.serviceWorker.controller;
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!had || reloaded) return;
+        const tryReload = () => {
+          if (S.cart.length || !$('#sheet-wrap').classList.contains('hidden')) return setTimeout(tryReload, 5000);
+          reloaded = true; location.reload();
+        };
+        tryReload();
+      });
+      navigator.serviceWorker.register(APP.base + 'sw.js').then(reg => {
+        reg.update().catch(() => {});
+        document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') reg.update().catch(() => {}); });
+      }).catch(() => {});
+    }
     App.enter();
   },
   enter() {
