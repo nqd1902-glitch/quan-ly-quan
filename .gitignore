@@ -1,1 +1,5 @@
 cong-cu-tao-ma/
+
+# file mat khau, khong dua len mang
+*.txt
+pass*
