@@ -27,6 +27,7 @@ Views.caidat = () => {
         <div class="seg">${[['58', '58 mm'], ['80', '80 mm']].map(t => `<button class="${Store.setting('billW', '58') === t[0] ? 'on' : ''}" data-act="cd-billw" data-v="${t[0]}">${t[1]}</button>`).join('')}</div>
         <label class="check"><input type="checkbox" data-in="cd-billask" ${Store.setting('billAsk', true) ? 'checked' : ''}> Hiện nút In bill sau khi chốt đơn</label>
         <p class="muted small">Bấm In bill, điện thoại sẽ mở hộp thoại in và in ra máy in đã cài trên máy. In lại bill cũ ở mục Đơn hàng.</p>
+        <button class="btn soft" data-act="cd-printhelp">Cách nối máy in</button>
       </div>
       ${License.can() ? '' : '<div class="card"><h3>Sao lưu dữ liệu <span class="badge warn">Nâng cấp</span></h3><p class="muted small" style="margin-top:0">Bản thường không có sao lưu và khôi phục. Dữ liệu chỉ nằm trong máy này, mất máy hoặc xóa trình duyệt là mất.</p><a class="btn soft" href="#/nangcap">Xem bản nâng cấp</a></div>'}
       <div class="card" ${License.can() ? '' : 'hidden'}><h3>Sao lưu dữ liệu</h3>
@@ -54,7 +55,25 @@ Inputs['cd-img'] = el => pickImage(el.files && el.files[0], +el.dataset.max, dat
 Actions['cd-img-del'] = el => { Store.setSetting(el.dataset.k, ''); applyTheme(); render(); };
 Inputs['cd-text'] = el => Store.setSetting(el.dataset.k, el.value.trim());
 Actions['cd-billw'] = el => { Store.setSetting('billW', el.dataset.v); render(); };
-Inputs['cd-check'] = el => Store.setSetting(el.dataset.k, el.checked);
+Actions['cd-printhelp'] = () => {
+  const step = (n, t) => `<div class="line" style="justify-content:flex-start;gap:10px;align-items:flex-start"><b>${n}</b><span>${t}</span></div>`;
+  UI.sheet(`<h2>Cách nối máy in bill</h2>
+  <p class="muted small">App không tự dò máy in. Máy in phải được cài vào điện thoại hoặc máy tính trước, rồi app in qua máy đó.</p>
+  <h3>Máy tính Windows</h3>
+  ${step(1, 'Cắm máy in bill vào máy tính (dây USB, hoặc cùng mạng wifi / dây mạng) và cài phần mềm điều khiển đi kèm máy in.')}
+  ${step(2, 'Vào Settings → Bluetooth &amp; devices → Printers &amp; scanners, thấy tên máy in là được. Nên đặt làm máy in mặc định.')}
+  ${step(3, 'Trong app chốt một đơn, bấm <b>In bill</b>, chọn đúng máy in rồi bấm In.')}
+  <h3>Bán bằng điện thoại, in ở quầy</h3>
+  ${step(1, 'Cần bản online. Cài máy in vào máy tính ở quầy như trên.')}
+  ${step(2, 'Trên máy tính đó mở app, vào <b>Thêm → Bản online</b>, tích <b>Máy này là trạm in</b>.')}
+  ${step(3, 'Điện thoại chốt đơn thì máy tính tự in. Cách này dùng được cho cả iPhone và Android.')}
+  <h3>In thẳng từ điện thoại</h3>
+  ${step('•', '<b>Android:</b> cài ứng dụng in của hãng máy in, bật nó trong Cài đặt → Thiết bị đã kết nối → In, rồi bấm In bill trong app.')}
+  ${step('•', '<b>iPhone:</b> chỉ in được với máy in có AirPrint. Phần lớn máy in bill không có, khi đó hãy dùng trạm in ở trên.')}
+  <p class="muted small">Bill ra lệch khổ thì chọn lại 58 mm hoặc 80 mm ở mục In bill.</p>
+  <button class="btn" data-act="sheet-close">Đóng</button>`);
+};
+Inputs['cd-check'] =el => Store.setSetting(el.dataset.k, el.checked);
 Inputs['cd-billask'] = el => Store.setSetting('billAsk', el.checked);
 Inputs['cd-name'] = el => { if (el.value.trim()) Store.setSetting('shopName', el.value.trim()); };
 Actions['cd-theme'] = el => { Store.setSetting('theme', el.dataset.v); applyTheme(); render(); };
