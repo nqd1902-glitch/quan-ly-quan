@@ -155,9 +155,16 @@ const Sync = (() => {
     Store.onChange = (c, obj) => {
       if (!active() || !COLLS.includes(c) || (c === 'settings' && LOCAL_SETTINGS.includes(obj.id))) return;
       mark(c, obj.id);
-      clearTimeout(pushT); pushT = setTimeout(sync, 1200);
+      clearTimeout(pushT); pushT = setTimeout(sync, 300); // đẩy lên gần như ngay để trạm in nhận sớm
     };
-    clearInterval(pollT); pollT = setInterval(() => { if (document.visibilityState === 'visible' && navigator.onLine) sync(); }, 10000);
+    // Máy thường: 10 giây hỏi máy chủ một lần. Máy trạm in: 2 giây một lần để bill ra trong khoảng 3 giây.
+    let lastPoll = 0;
+    clearInterval(pollT); pollT = setInterval(() => {
+      if (!navigator.onLine) return;
+      const station = Station.on();
+      if (!station && (document.visibilityState !== 'visible' || Date.now() - lastPoll < 10000)) return;
+      lastPoll = Date.now(); sync();
+    }, 2000);
     window.addEventListener('online', sync);
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') sync(); });
   }
