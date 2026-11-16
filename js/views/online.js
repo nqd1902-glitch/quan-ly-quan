@@ -21,7 +21,8 @@ Views.online = () => {
   const s = Sync.state, base = { title: 'Bản online', back: '#/them', tab: 'them' };
   // 1. chưa đăng nhập
   if (!s.session) return { ...base, html: `<div class="card"><h3>Dùng chung dữ liệu trên nhiều máy</h3>
-      <div class="muted small">Chủ xem doanh thu từ xa, nhân viên bán trên máy riêng, số liệu tự lưu lên mạng. Mất mạng vẫn bán được.</div>
+      <div class="muted small">Mất mạng vẫn bán được, có mạng lại thì tự đồng bộ.</div>
+      ${['Chủ xem doanh thu, tồn kho từ xa', 'Nhân viên bán trên máy riêng, số liệu tự lưu lên mạng', '<b>Kết nối in bill:</b> điện thoại chốt đơn, máy in ở quầy tự in, dùng được cả iPhone và Android', 'Phân quyền cho từng vị trí nhân viên', 'Đủ tính năng của bản nâng cấp (PRO)'].map(t => `<div class="line" style="justify-content:flex-start;gap:10px"><span style="color:var(--acc);font-weight:700">✓</span><span>${t}</span></div>`).join('')}
       <label>Số điện thoại<input id="on-id" inputmode="tel" autocomplete="username" placeholder="Ví dụ: 0901234567"></label>
       <label>Mật khẩu (từ 6 ký tự)<input id="on-pass" type="password" autocomplete="current-password"></label>
       <button class="btn" data-act="on-login">Đăng nhập</button>

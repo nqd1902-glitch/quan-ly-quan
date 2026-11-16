@@ -87,7 +87,7 @@ main{padding:2px 16px 170px}
 .btn:active,.pcard:active,.item:active{opacity:.75}
 
 label{display:block;font-size:12.5px;font-weight:600;color:var(--muted);margin-top:12px}
-input[type=text],input[type=number],input[type=date],input[type=search],input:not([type]),select,textarea{
+input[type=text],input[type=number],input[type=date],input[type=search],input[type=password],input:not([type]),select,textarea{
   display:block;width:100%;margin-top:5px;padding:12px 13px;border-radius:12px;border:1px solid var(--line);
   background:var(--card);font-size:16px;font-weight:500;outline:none;min-width:0;-webkit-appearance:none;appearance:none}
 select{background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%);
