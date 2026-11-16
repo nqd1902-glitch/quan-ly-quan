@@ -57,8 +57,19 @@ Views.online = () => {
     <div class="list">${s.members.map(m => `<div class="item"><span class="grow"><span class="t">${esc(m.name || '(chưa đặt tên)')}${m.user_id === s.session.user.id ? ' <span class="badge gray">Bạn</span>' : ''}</span></span>
       ${owner && m.role !== 'owner' ? `<select style="width:auto;margin:0;padding:8px 30px 8px 10px;font-size:14px" data-in="on-role" data-u="${m.user_id}">${['manager', 'cashier', 'staff'].map(r => `<option value="${r}" ${m.role === r ? 'selected' : ''}>${ROLE[r]}</option>`).join('')}</select>
         <button class="btn sm danger" data-act="on-kick" data-u="${m.user_id}">Xóa</button>` : `<span class="badge ok">${ROLE[m.role] || m.role}</span>`}</div>`).join('')}</div>
+    ${owner ? `<div class="card"><h3>Quyền của từng vị trí</h3>
+      <div class="muted small">Bấm vào ô để bật hoặc tắt quyền cho cả vị trí đó. Máy nhân viên nhận thay đổi sau khoảng 10 giây.</div>
+      <table class="pm"><tr><th></th>${Perm.ROLES.map(r => `<th>${ROLE[r]}</th>`).join('')}</tr>
+        <tr><td>Bán hàng, in bill</td>${Perm.ROLES.map(() => '<td><input type="checkbox" checked disabled></td>').join('')}</tr>
+        ${Perm.list().map(([k, t]) => `<tr><td>${t}</td>${Perm.ROLES.map(r => `<td><input type="checkbox" data-in="pm-set" data-r="${r}" data-k="${k}" aria-label="${t} – ${ROLE[r]}" ${Perm.of(r).includes(k) ? 'checked' : ''}></td>`).join('')}</tr>`).join('')}
+        <tr><td>Lương, cài đặt, người dùng, phân quyền</td><td colspan="3" class="muted small">Chỉ chủ</td></tr></table>
+      ${Perm.custom() ? '<button class="btn ghost" data-act="pm-reset">Về quyền mặc định</button>' : '<div class="muted small">Đang dùng quyền mặc định.</div>'}</div>`
+      : `<div class="card"><h3>Quyền của bạn (${ROLE[s.role] || ''})</h3>
+      ${[['sell', 'Bán hàng, in bill'], ...Perm.list()].map(([k, t]) => `<div class="line" style="justify-content:flex-start;gap:10px"><span style="font-weight:700;color:${Perm.can(k) ? 'var(--acc)' : 'var(--muted)'}">${Perm.can(k) ? '✓' : '✕'}</span><span class="${Perm.can(k) ? '' : 'muted'}">${t}</span></div>`).join('')}</div>`}
     <button class="btn ghost" data-act="on-logout" data-clear="1">Đăng xuất khỏi máy này</button>` };
 };
+Inputs['pm-set'] = el => { if (Sync.state.role !== 'owner') return; Perm.set(el.dataset.r, el.dataset.k, el.checked); render(); UI.toast('Đã lưu quyền'); };
+Actions['pm-reset'] = () => UI.confirm('Đưa quyền của cả 3 vị trí về mặc định?', 'Về mặc định', () => { Perm.reset(); render(); UI.toast('Đã về quyền mặc định'); });
 
 Actions['on-login'] = el => { const id = $('#on-id').value.trim(), p = $('#on-pass').value; if (!id || !p) return UI.toast('Nhập số điện thoại và mật khẩu'); Online.run(el, () => Sync.signIn(id, p)); };
 Actions['on-signup'] = el => { const id = $('#on-id').value.trim(), p = $('#on-pass').value; if (!id) return UI.toast('Nhập số điện thoại'); if (p.length < 6) return UI.toast('Mật khẩu phải từ 6 ký tự'); Online.run(el, () => Sync.signUp(id, p), 'Đã tạo tài khoản'); };

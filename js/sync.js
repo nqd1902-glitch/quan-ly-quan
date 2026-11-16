@@ -249,13 +249,33 @@ const Sync = (() => {
 /* Phân quyền theo vai trò (chỉ áp dụng khi đang dùng bản online; bản offline một người dùng thì được làm hết).
    Chủ có mọi quyền. Lưu ý: việc ẩn này làm ở phía app, máy chủ chỉ chặn giữa các cửa hàng với nhau. */
 const Perm = {
-  MAP: {
+  // quyền mặc định của từng vị trí; chủ sửa được ở mục Bản online (lưu trong cài đặt 'perms', đồng bộ cho mọi máy)
+  DEF: {
     manager: ['sell', 'cancel', 'discount', 'debt', 'menu', 'stock', 'report', 'cash', 'promo'],
     cashier: ['sell', 'cancel', 'discount', 'debt'],
     staff: ['sell'],
   },
+  ROLES: ['manager', 'cashier', 'staff'],
+  // các quyền chủ bật tắt được, theo thứ tự hiện trên bảng
+  list() {
+    const quan = APP.mode === 'quan';
+    return [['cancel', 'Hủy đơn'], ['discount', 'Giảm giá thêm trên đơn'], ['debt', 'Khách hàng, ghi nợ'],
+      ['menu', quan ? 'Sửa món, công thức, giá' : 'Sửa mặt hàng, giá'], ['stock', 'Kho, nhập hàng'],
+      ['report', 'Xem báo cáo, doanh thu'], ['cash', 'Thu chi, sổ quỹ'], ['promo', 'Khuyến mãi']];
+  },
+  of(role) {
+    const saved = Store.setting('perms', null), a = saved && Array.isArray(saved[role]) ? saved[role] : Perm.DEF[role] || [];
+    return a.includes('sell') ? a : ['sell', ...a];
+  },
+  custom() { return !!Store.setting('perms', null); },
+  set(role, key, on) {
+    const m = {}; Perm.ROLES.forEach(r => { m[r] = Perm.of(r).filter(k => !(r === role && k === key)); });
+    if (on) m[role].push(key);
+    Store.setSetting('perms', m);
+  },
+  reset() { Store.setSetting('perms', null); },
   // màn hình -> quyền cần có. Màn hình không có trong bảng thì ai cũng vào được.
   ROUTE: { mon: 'menu', topping: 'menu', kho: 'stock', baocao: 'report', thuchi: 'cash', chiphi: 'cash', km: 'promo', khach: 'debt', luong: 'owner', caidat: 'owner' },
-  can(k) { if (!Sync.active()) return true; const r = Sync.state.role; return r === 'owner' || (Perm.MAP[r] || []).includes(k); },
+  can(k) { if (!Sync.active()) return true; const r = Sync.state.role; return r === 'owner' || Perm.of(r).includes(k); },
   route(name) { const k = Perm.ROUTE[name]; return !k || Perm.can(k); },
 };

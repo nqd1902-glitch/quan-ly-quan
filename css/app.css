@@ -264,3 +264,10 @@ body.hasbg #hdr{background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop
 .ed-online{background:#1d6fe0;color:#fff}
 .ed-trial{background:var(--warn-soft);color:var(--warn)}
 .ed-basic{background:var(--soft);color:var(--muted)}
+
+/* Bảng quyền của từng vị trí (mục Bản online, chỉ chủ thấy) */
+.pm{width:100%;border-collapse:collapse;margin:10px 0;font-size:14px}
+.pm th{font-size:12px;font-weight:700;color:var(--muted);padding:6px 2px;text-align:center}
+.pm td{padding:9px 2px;border-top:1px solid var(--line);text-align:center}
+.pm td:first-child{text-align:left;padding-right:8px}
+.pm input[type=checkbox]{display:inline-block;width:22px;height:22px;margin:0;padding:0;accent-color:var(--acc)}
