@@ -28,14 +28,17 @@ Views.caidat = () => {
         <label class="check"><input type="checkbox" data-in="cd-billask" ${Store.setting('billAsk', true) ? 'checked' : ''}> Hiện nút In bill sau khi chốt đơn</label>
         <p class="muted small">Bấm In bill, điện thoại sẽ mở hộp thoại in và in ra máy in đã cài trên máy. In lại bill cũ ở mục Đơn hàng.</p>
       </div>
-      <div class="card"><h3>Sao lưu dữ liệu</h3>
+      ${License.can() ? '' : '<div class="card"><h3>Sao lưu dữ liệu <span class="badge warn">Nâng cấp</span></h3><p class="muted small" style="margin-top:0">Bản thường không có sao lưu và khôi phục. Dữ liệu chỉ nằm trong máy này, mất máy hoặc xóa trình duyệt là mất.</p><a class="btn soft" href="#/nangcap">Xem bản nâng cấp</a></div>'}
+      <div class="card" ${License.can() ? '' : 'hidden'}><h3>Sao lưu dữ liệu</h3>
         <p class="muted small" style="margin-top:0">Dữ liệu chỉ nằm trong điện thoại này. Hãy sao lưu định kỳ và gửi file vào Zalo/Drive của bạn, phòng khi mất máy hoặc xóa trình duyệt.</p>
         ${Store.persistent ? '' : '<div class="note">Trình duyệt đang ở chế độ ẩn danh nên dữ liệu sẽ mất khi đóng. Hãy mở bằng tab thường.</div>'}
         <button class="btn" data-act="backup">Sao lưu ra file</button>
         <label class="btn soft" style="color:var(--pri)">Khôi phục từ file<input type="file" accept=".json,application/json" class="hidden" data-in="cd-restore"></label>
       </div>
       <div class="card"><h3>Bản quyền ${L.tier ? `<span class="badge ok">${License.tierName()}</span>` : `<span class="badge warn">Dùng thử còn ${L.daysLeft} ngày</span>`}</h3>
-        ${L.tier === 'pro' ? `<div class="muted small">Mã máy</div><div class="code">${L.deviceId}</div>` : (L.tier === 'basic' ? '<p class="muted small" style="margin-top:0">Đang dùng bản thường. Nhập mã của bản nâng cấp để mở thêm tính năng.</p>' : '') + License.boxHtml() + '<a class="btn soft" href="#/nangcap">Xem tính năng bản nâng cấp</a>'}
+        ${L.tier ? `<p class="${L.keyDays <= 3 ? 'note' : 'muted small'}" style="margin-top:0">Hạn dùng đến ${License.expiresText()} (còn ${L.keyDays} ngày). Gia hạn hoặc đổi bậc: nhập mã mới bên dưới.</p>` : ''}
+        ${License.boxHtml()}
+        ${L.tier === 'pro' ? '' : '<a class="btn soft" href="#/nangcap">Xem tính năng bản nâng cấp</a>'}
       </div>
       <div class="card"><h3>Dữ liệu</h3>
         <button class="btn soft" data-act="cd-seed">Nạp dữ liệu mẫu</button>
@@ -56,10 +59,12 @@ Inputs['cd-name'] = el => { if (el.value.trim()) Store.setSetting('shopName', el
 Actions['cd-theme'] = el => { Store.setSetting('theme', el.dataset.v); applyTheme(); render(); };
 
 Actions.backup = async () => {
+  if (!License.can()) return go('#/nangcap'); // sao lưu chỉ có ở bản nâng cấp
   const blob = new Blob([JSON.stringify(Store.exportAll())], { type: 'application/json' });
   if (await saveFile(blob, `sao-luu-quan-${ymd()}.json`)) Store.setSetting('lastBackup', ymd());
 };
 Inputs['cd-restore'] = el => {
+  if (!License.can()) { el.value = ''; return go('#/nangcap'); }
   if (Sync.active()) { el.value = ''; return UI.toast('Đang dùng bản online. Đăng xuất ở mục Bản online trước khi khôi phục'); }
   const file = el.files && el.files[0]; if (!file) return;
   const rd = new FileReader();
@@ -87,7 +92,9 @@ Actions['lic-copy'] = async () => {
 Actions['lic-activate'] = async () => {
   const key = $('#lic-key').value.trim();
   if (!key) return UI.toast('Bạn dán mã kích hoạt vào trước nhé');
-  if (await License.activate(key)) { UI.toast('Đã kích hoạt ' + License.tierName().toLowerCase()); if ($('#overlay').classList.contains('hidden')) render(); else App.enter(); }
+  const r = await License.activate(key);
+  if (r === 'ok') { UI.toast(`Đã kích hoạt ${License.tierName().toLowerCase()}, hạn đến ${License.expiresText()}`); if ($('#overlay').classList.contains('hidden')) render(); else App.enter(); }
+  else if (r === 'old') UI.toast('Mã này đã hết hạn, hãy xin mã mới');
   else UI.toast(License.state.canVerify ? 'Mã kích hoạt không đúng với máy này' : 'Chưa kiểm tra được mã, hãy mở app bằng link https');
 };
 
