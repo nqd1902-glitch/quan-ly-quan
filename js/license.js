@@ -1,15 +1,18 @@
 'use strict';
 /* Bản quyền bản offline:
-   - Dùng thử TRIAL_DAYS ngày, đủ tính năng như bản nâng cấp.
-   - Sau đó cần mã kích hoạt gắn với mã máy. Mã có HẠN DÙNG (thường 30 ngày), hết hạn phải xin mã mới.
-   - Có 2 bậc: bản thường và bản nâng cấp.
-   Mã kích hoạt có dạng  NNNNNNNN.chữ-ký  trong đó NNNNNNNN là ngày hết hạn (năm tháng ngày).
-   Chữ ký số ECDSA ký trên 'QLQ1|mã máy|ngày hết hạn' (bản thường) hoặc 'QLQ2|…' (bản nâng cấp);
-   app chỉ giữ khóa công khai nên không tự tạo hay sửa ngày của mã được. */
+   - 14 ngày đầu: dùng thử đủ tính năng như bản nâng cấp (PRO).
+   - 14 ngày tiếp theo: dùng thử ở mức bản thường.
+   - Sau 28 ngày: khóa, cần mã kích hoạt gắn với mã máy.
+   - Có 2 bậc: bản thường và bản nâng cấp (PRO).
+   Mã kích hoạt có 2 kiểu:
+     NNNNNNNN.chữ-ký  : có hạn, NNNNNNNN là ngày hết hạn (năm tháng ngày). Ký trên 'QLQ1|mã máy|ngày' hoặc 'QLQ2|…'.
+     chữ-ký           : vĩnh viễn. Ký trên 'QLQ1|mã máy' (bản thường) hoặc 'QLQ2|mã máy' (bản nâng cấp).
+   Chữ ký số ECDSA; app chỉ giữ khóa công khai nên không tự tạo hay sửa ngày của mã được. */
 const SELLER_ZALO = '0859 400 192'; // số Zalo người bán, hiện ở màn hình kích hoạt
 const License = (() => {
-  const TRIAL_DAYS = 14, DAY = 86400000;
-  const st = { deviceId: '', activated: false, tier: '', daysLeft: TRIAL_DAYS, canVerify: true, expires: '', keyDays: 0, hadKey: false };
+  const TRIAL_DAYS = 14, FREE_DAYS = 14, DAY = 86400000;
+  // daysLeft: số ngày dùng thử PRO còn lại. freeLeft: số ngày còn lại trước khi khóa (gồm cả giai đoạn thử bản thường)
+  const st = { deviceId: '', activated: false, tier: '', daysLeft: TRIAL_DAYS, freeLeft: TRIAL_DAYS + FREE_DAYS, canVerify: true, expires: '', keyDays: 0, hadKey: false, forever: false };
   const ls = { get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} } };
   let seen = Date.now(); // mốc thời gian lớn nhất từng thấy (chống chỉnh lùi đồng hồ)
 
@@ -23,28 +26,30 @@ const License = (() => {
     return Uint8Array.from(atob(s), c => c.charCodeAt(0));
   }
   const ymdNum = t => { const d = new Date(t); return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); };
-  /* Kiểm tra mã. Trả về { tier: 'pro' | 'basic', exp: 'NNNNNNNN' } hoặc null nếu mã sai */
+  /* Kiểm tra mã. Trả về { tier: 'pro' | 'basic', exp: 'NNNNNNNN' hoặc '' nếu vĩnh viễn } hoặc null nếu mã sai */
   async function verify(key) {
     if (!(window.crypto && crypto.subtle)) { st.canVerify = false; return null; }
-    const m = /^(\d{8})\.([A-Za-z0-9_-]+)$/.exec(String(key).replace(/\s/g, ''));
-    if (!m) return null;
+    const text = String(key).replace(/\s/g, ''), m = /^(\d{8})\.([A-Za-z0-9_-]+)$/.exec(text);
+    if (!m && !/^[A-Za-z0-9_-]{40,}$/.test(text)) return null;
+    const exp = m ? m[1] : '';
     try {
       const k = await crypto.subtle.importKey('jwk', LICENSE_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-      const sig = b64u(m[2]);
-      const ok = pre => crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, k, sig, new TextEncoder().encode(`${pre}|${st.deviceId}|${m[1]}`));
-      if (await ok('QLQ2')) return { tier: 'pro', exp: m[1] };
-      if (await ok('QLQ1')) return { tier: 'basic', exp: m[1] };
+      const sig = b64u(m ? m[2] : text);
+      const ok = pre => crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, k, sig, new TextEncoder().encode(pre + '|' + st.deviceId + (exp ? '|' + exp : '')));
+      if (await ok('QLQ2')) return { tier: 'pro', exp };
+      if (await ok('QLQ1')) return { tier: 'basic', exp };
     } catch (_) {}
     return null;
   }
   /* Áp mã đã kiểm tra vào trạng thái; mã quá hạn thì coi như chưa kích hoạt */
   function apply(v) {
     st.hadKey = !!v;
-    const live = v && +v.exp >= ymdNum(seen);
+    const live = v && (!v.exp || +v.exp >= ymdNum(seen));
     st.tier = live ? v.tier : ''; st.activated = !!live;
-    st.expires = v ? v.exp : '';
-    st.keyDays = live ? Math.round((new Date(+v.exp.slice(0, 4), +v.exp.slice(4, 6) - 1, +v.exp.slice(6, 8)) - new Date(new Date(seen).setHours(0, 0, 0, 0))) / DAY) + 1 : 0;
+    st.expires = v ? v.exp : ''; st.forever = !!(live && !v.exp);
+    st.keyDays = !live ? 0 : !v.exp ? 99999 : Math.round((new Date(+v.exp.slice(0, 4), +v.exp.slice(4, 6) - 1, +v.exp.slice(6, 8)) - new Date(new Date(seen).setHours(0, 0, 0, 0))) / DAY) + 1;
   }
+  const online = () => typeof Sync !== 'undefined' && Sync.paid();
 
   return {
     state: st, TRIAL_DAYS,
@@ -57,19 +62,39 @@ const License = (() => {
       Store.setSys('firstRun', first); ls.set(APP.ls + 'first', String(first));
       seen = Math.max(now, Store.sys('lastSeen') || 0, +ls.get(APP.ls + 'seen') || 0);
       Store.setSys('lastSeen', seen); ls.set(APP.ls + 'seen', String(seen));
-      st.daysLeft = Math.max(0, Math.ceil(TRIAL_DAYS - (seen - first) / DAY));
+      const used = (seen - first) / DAY;
+      st.daysLeft = Math.max(0, Math.ceil(TRIAL_DAYS - used));
+      st.freeLeft = Math.max(0, Math.ceil(TRIAL_DAYS + FREE_DAYS - used));
       const key = Store.sys('licenseKey');
       apply(key ? await verify(key) : null);
     },
-    locked() { return !st.activated && st.daysLeft <= 0 && !(typeof Sync !== 'undefined' && Sync.paid()); },
-    /* Tính năng của bản nâng cấp: dùng được khi mã bản nâng cấp còn hạn, đang dùng thử, hoặc gói online còn hạn */
-    can() { return st.tier === 'pro' || (!st.activated && st.daysLeft > 0) || (typeof Sync !== 'undefined' && Sync.paid()); },
+    locked() { return !st.activated && st.freeLeft <= 0 && !online(); },
+    /* Tính năng của bản nâng cấp: dùng được khi mã bản nâng cấp còn hạn, đang trong 14 ngày thử đầu, hoặc gói online còn hạn */
+    can() { return st.tier === 'pro' || (!st.activated && st.daysLeft > 0) || online(); },
     tierName() { return st.tier === 'pro' ? 'Bản nâng cấp' : st.tier === 'basic' ? 'Bản thường' : 'Dùng thử'; },
+    /* App đang ở bản nào: mã ngắn để hiện huy hiệu, kèm lời mô tả */
+    edition() {
+      if (online()) return { code: 'ONLINE', cls: 'online', text: 'Bản online' };
+      if (st.tier === 'pro') return { code: 'PRO', cls: 'pro', text: 'Bản nâng cấp (PRO)' };
+      if (st.tier === 'basic') return { code: 'THƯỜNG', cls: 'basic', text: 'Bản thường' };
+      if (st.daysLeft > 0) return { code: 'THỬ PRO', cls: 'trial', text: `Dùng thử bản PRO, còn ${st.daysLeft} ngày` };
+      return { code: 'THỬ', cls: 'basic', text: `Dùng thử bản thường, còn ${st.freeLeft} ngày` };
+    },
+    badgeHtml() { const e = License.edition(); return `<span class="ed ed-${e.cls}">${e.code}</span>`; },
     expiresText() { const e = st.expires; return e ? `${e.slice(6, 8)}/${e.slice(4, 6)}/${e.slice(0, 4)}` : ''; },
+    expiryPhrase() { return st.forever ? 'dùng vĩnh viễn' : 'hạn đến ' + License.expiresText(); },
+    /* Dòng nhắc trên màn hình bán hàng khi sắp hết hạn hoặc sắp đổi giai đoạn dùng thử */
+    noticeHtml() {
+      if (online()) return '';
+      const a = t => `<a class="note" style="display:block;margin:0 0 10px" href="#/caidat">${t}</a>`;
+      if (st.activated) return !st.forever && st.keyDays <= 3 ? a(`Còn ${st.keyDays} ngày sử dụng (đến ${License.expiresText()}) · Bấm để gia hạn`) : '';
+      if (st.daysLeft > 0) return st.daysLeft <= 3 ? a(`Còn ${st.daysLeft} ngày dùng thử bản PRO, sau đó về bản thường · Bấm để kích hoạt`) : '';
+      return a(`Đang dùng thử bản thường, còn ${st.freeLeft} ngày · Bấm để kích hoạt`);
+    },
     async activate(key) {
       const v = await verify(key);
       if (!v) return 'bad';
-      if (+v.exp < ymdNum(seen)) return 'old'; // mã đúng nhưng đã quá hạn
+      if (v.exp && +v.exp < ymdNum(seen)) return 'old'; // mã đúng nhưng đã quá hạn
       Store.setSys('licenseKey', String(key).replace(/\s/g, '')); apply(v); return 'ok';
     },
     boxHtml() {
@@ -98,9 +123,9 @@ const License = (() => {
         'Sao lưu và khôi phục dữ liệu',
         'Đổi màu, logo, ảnh bìa, ảnh nền',
       ].filter(Boolean);
-      return `<div class="card"><h3>Bản nâng cấp có thêm</h3>
+      return `<div class="card"><h3>Bản nâng cấp (PRO) có thêm</h3>
           ${list.map(t => `<div class="line" style="justify-content:flex-start;gap:10px"><span style="color:var(--acc);font-weight:700">✓</span><span>${t}</span></div>`).join('')}
-          <p class="muted small">Bạn đang dùng ${License.tierName().toLowerCase()}. Dữ liệu đã nhập vẫn giữ nguyên khi nâng cấp.</p></div>
+          <p class="muted small">Bạn đang ở: ${License.edition().text}. Dữ liệu đã nhập vẫn giữ nguyên khi nâng cấp.</p></div>
         <div class="card">${License.boxHtml()}</div>`;
     },
   };

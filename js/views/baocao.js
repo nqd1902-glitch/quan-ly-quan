@@ -51,6 +51,7 @@ Views.them = () => {
   const item = (href, emo, t, d) => !Perm.route(href.slice(2)) ? '' : `<a class="item" href="${href}"><span class="ico">${icon(emo)}</span><span class="grow"><span class="t">${t}</span><div class="d">${d}</div></span>${lock(href)}<span class="chev">›</span></a>`;
   return {
     title: 'Thêm',
+    right: License.badgeHtml(),
     html: `<div class="list">
       ${item('#/online', 'cloud', 'Bản online', Sync.active() ? esc(Online.statusText()) : 'Nhiều máy dùng chung dữ liệu, xem từ xa')}
       ${item('#/don', 'receipt', 'Đơn hàng', 'Xem lại, hủy đơn theo ngày')}

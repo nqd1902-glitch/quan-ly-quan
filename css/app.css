@@ -257,3 +257,10 @@ body.hasbg #hdr{background:color-mix(in srgb,var(--bg) 72%,transparent);backdrop
 .dv .row3 input{padding:10px 8px}
 
 [hidden]{display:none!important}
+
+/* huy hiệu cho biết app đang ở bản nào */
+.ed{flex:none;display:inline-block;padding:3px 8px;border-radius:7px;font-size:11px;font-weight:800;letter-spacing:.06em;line-height:1.2;white-space:nowrap;vertical-align:middle}
+.ed-pro{background:linear-gradient(120deg,#f5b301,#ff7a1a);color:#fff}
+.ed-online{background:#1d6fe0;color:#fff}
+.ed-trial{background:var(--warn-soft);color:var(--warn)}
+.ed-basic{background:var(--soft);color:var(--muted)}

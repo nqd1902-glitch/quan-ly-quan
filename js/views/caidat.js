@@ -35,8 +35,9 @@ Views.caidat = () => {
         <button class="btn" data-act="backup">Sao lưu ra file</button>
         <label class="btn soft" style="color:var(--pri)">Khôi phục từ file<input type="file" accept=".json,application/json" class="hidden" data-in="cd-restore"></label>
       </div>
-      <div class="card"><h3>Bản quyền ${L.tier ? `<span class="badge ok">${License.tierName()}</span>` : `<span class="badge warn">Dùng thử còn ${L.daysLeft} ngày</span>`}</h3>
-        ${L.tier ? `<p class="${L.keyDays <= 3 ? 'note' : 'muted small'}" style="margin-top:0">Hạn dùng đến ${License.expiresText()} (còn ${L.keyDays} ngày). Gia hạn hoặc đổi bậc: nhập mã mới bên dưới.</p>` : ''}
+      <div class="card"><h3>Bản quyền ${License.badgeHtml()}</h3>
+        <p class="muted small" style="margin-top:0">Đang ở: <b>${License.edition().text}</b></p>
+        ${L.tier ? (L.forever ? '<p class="muted small" style="margin-top:0">Mã vĩnh viễn, không hết hạn. Muốn đổi bậc thì nhập mã mới bên dưới.</p>' : `<p class="${L.keyDays <= 3 ? 'note' : 'muted small'}" style="margin-top:0">Hạn dùng đến ${License.expiresText()} (còn ${L.keyDays} ngày). Gia hạn hoặc đổi bậc: nhập mã mới bên dưới.</p>`) : ''}
         ${License.boxHtml()}
         ${L.tier === 'pro' ? '' : '<a class="btn soft" href="#/nangcap">Xem tính năng bản nâng cấp</a>'}
       </div>
@@ -93,7 +94,7 @@ Actions['lic-activate'] = async () => {
   const key = $('#lic-key').value.trim();
   if (!key) return UI.toast('Bạn dán mã kích hoạt vào trước nhé');
   const r = await License.activate(key);
-  if (r === 'ok') { UI.toast(`Đã kích hoạt ${License.tierName().toLowerCase()}, hạn đến ${License.expiresText()}`); if ($('#overlay').classList.contains('hidden')) render(); else App.enter(); }
+  if (r === 'ok') { UI.toast(`Đã kích hoạt ${License.tierName().toLowerCase()}, ${License.expiryPhrase()}`); if ($('#overlay').classList.contains('hidden')) render(); else App.enter(); }
   else if (r === 'old') UI.toast('Mã này đã hết hạn, hãy xin mã mới');
   else UI.toast(License.state.canVerify ? 'Mã kích hoạt không đúng với máy này' : 'Chưa kiểm tra được mã, hãy mở app bằng link https');
 };

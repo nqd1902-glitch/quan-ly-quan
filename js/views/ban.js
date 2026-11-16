@@ -154,9 +154,9 @@ Views.ban = () => {
   const logo = Store.setting('logo', ''), cover = Store.setting('cover', ''), L = License.state;
   return {
     title: Store.setting('shopName', 'Bán hàng'),
-    titleHtml: (logo ? `<img class="logo-sm" src="${logo}" alt="">` : '') + `<span>${esc(Store.setting('shopName', 'Bán hàng'))}</span>`,
+    titleHtml: (logo ? `<img class="logo-sm" src="${logo}" alt="">` : '') + `<span>${esc(Store.setting('shopName', 'Bán hàng'))}</span>${License.badgeHtml()}`,
     right: `${Store.all('tabs').length ? `<button class="hbtn" data-act="tabs-open">Đơn tạm · ${Store.all('tabs').length}</button>` : ''}<a class="hbtn" href="#/don">Đơn hôm nay</a>`,
-    html: `${Sync.paid() ? '' : !L.activated && L.daysLeft <= 3 ? `<a class="note" style="display:block;margin:0 0 10px" href="#/caidat">Còn ${L.daysLeft} ngày dùng thử · Bấm để kích hoạt bản quyền</a>` : L.activated && L.keyDays <= 3 ? `<a class="note" style="display:block;margin:0 0 10px" href="#/caidat">Còn ${L.keyDays} ngày sử dụng (đến ${License.expiresText()}) · Bấm để gia hạn</a>` : ''}
+    html: `${License.noticeHtml()}
       ${cover ? `<div class="cover"><img src="${cover}" alt=""><div class="cv-t"><b>${esc(Store.setting('shopName', ''))}</b><span>${esc(Store.setting('slogan', ''))}</span></div></div>` : ''}
       <div class="search">${icon('search')}<input type="search" placeholder="Tìm ${APP.has('recipe') ? 'món' : 'hàng'}" value="${esc(S.q)}" data-in="ban-q"></div>
       <div class="chips">${cats.map(c => `<button class="chip ${c === S.cat ? 'on' : ''}" data-act="ban-cat" data-v="${esc(c)}">${esc(c)}</button>`).join('')}</div>
